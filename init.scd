@@ -1,6 +1,19 @@
 //Declare variables for use in Main!
 
-~scsynthDX7 = s.defaultGroup;
+//~scsynthDX7 = s.defaultGroup;
+~scsynthDX7 = ParGroup.new();
+
+~lfoSqr = Buffer.alloc(s, 512, 1);
+~lfoSawDown = Buffer.alloc(s, 512, 1);
+~lfoSawUp = Buffer.alloc(s, 512, 1);
+~lfoSin = Buffer.alloc(s, 512, 1);
+~lfoTri = Buffer.alloc(s, 512, 1);
+~lfoSqr.sine3(Array.series(50, 1, 2), 1/Array.series(50, 1, 2)); //square waveform
+~lfoTri.sine3(Array.series(50, 1, 2), ((1/(Array.series(50, 1, 2).squared)) * [1,-1])); //triangle waveform
+~lfoSawDown.sine3(Array.series(100, 1, 1), (1/(Array.series(100, 1, 1)) * [-1,1]),4pi); //sawtooth waveform down
+~lfoSawUp.sine3(Array.series(100, 1, 1), (1/(Array.series(100, 1, 1)) * [-1,1]),3pi); //sawtooth waveform rising
+~lfoSin.sine3([1],[1]); // sine waveform
+~waveform_selector = [~lfoTri, ~lfoSawDown, ~lfoSawUp, ~lfoSqr, ~lfoSin, ~lfoSin];
 
 ~coarseArrR = #[0.5,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31];
 
@@ -244,25 +257,7 @@ edepth = 127.5f - (adepth + mdepth);
 
 ~outOscVol = #[2, 2, 2, 2, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 3, 3, 4, 4, 4, 5, 5, 3, 3, 3, 4, 4, 5, 6];
 
-/*
-buffers and busses
-*/
 
-~lfoSqr = Buffer.alloc(s, 512, 1);
-~lfoSawDown = Buffer.alloc(s, 512, 1);
-~lfoSawUp = Buffer.alloc(s, 512, 1);
-~lfoSin = Buffer.alloc(s, 512, 1);
-~lfoTri = Buffer.alloc(s, 512, 1);
-~pitchTameConst;
-~pitchTameMult;
-~busMeAmp = Bus.audio(s, 1);
-~busMePitch = Bus.audio(s, 1);
-~lfoSqr.sine3(Array.series(50, 1, 2), 1/Array.series(50, 1, 2)); //square waveform
-~lfoTri.sine3(Array.series(50, 1, 2), ((1/(Array.series(50, 1, 2).squared)) * [1,-1])); //triangle waveform
-~lfoSawDown.sine3(Array.series(100, 1, 1), (1/(Array.series(100, 1, 1)) * [-1,1]),4pi); //sawtooth waveform down
-~lfoSawUp.sine3(Array.series(100, 1, 1), (1/(Array.series(100, 1, 1)) * [-1,1]),3pi); //sawtooth waveform rising
-~lfoSin.sine3([1],[1]); // sine waveform
-~waveform_selector = [~lfoTri, ~lfoSawDown, ~lfoSawUp, ~lfoSqr, ~lfoSin, ~lfoSin];
 ~phase_selector =    [0.5pi , 0.98pi    , 0.98    , 0.98pi,  0    , 0     ];
 ~pitchTameConst =    [0,1,1,0,0,0];
 ~pitchTameMult =     [1,0,0,1,1,1];

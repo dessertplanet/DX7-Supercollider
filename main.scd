@@ -5,6 +5,132 @@
 //Load file with additional functions
 "/tmp/patch/lib.scd".load;
 
+~presetMeta = CSVFileReader.read("DX7-presets2.csv",true);
+
+~presets = FileReader.read("DX7.afx");
+
+/*
+buffers and busses
+*/
+
+~busMeAmp = Bus.audio(s, 1);
+~busMePitch = Bus.audio(s, 1);
+
+
+///MAIN FUNCTIONS
+
+~noteParser = { arg note, vel;
+	1.do { arg yxx;
+		if(vel > 0,
+			{
+				//150.do({ arg c; ("cc#" ++ c.asString ++ " = " ++ ~vr[c]).postln}); //general cc printer, rates are not inverted.
+				if(~noteArrayDX7[note] !== nil,~noteArrayDX7[note].free);
+
+				if(~vr[137] == 1, {//lfo sync controller
+					if(~betass == 1,   {
+						~headno.free;
+					});
+					~betass = 1;
+					~headno = Synth.before(~scsynthDX7, \InfEfx, ~defjamHead0.());
+				},
+				{
+					if(~betass == 0,   {
+						~betass = 1;
+						~headno = Synth.before(~scsynthDX7, \InfEfx, ~defjamHead0.())
+					},
+					{
+						~headno.set(~defjamHead0.())
+					});
+				});
+				~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel),~scsynthDX7);
+				//~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel), ~scsynthDX7); //orjburayi addtotail diye degistirdin
+
+			},
+			{
+				~noteArrayDX7[note].set(\gate,0);
+				~noteArrayDX7[note] = nil;
+
+		})
+	}
+};
+
+
+f = { arg x, y ,z; //y value, z cc no
+	if(x == 3,
+		{ ~vr[y] = z },
+		{ ~vr[y + 128] = z }
+	)
+};
+
+//Creating a patch array from .afx file to prevent "unsaved file" error.
+/*r = File("DX7.afx".resolveRelative,"r");
+16384.do({arg item;
+	~dx7patches[item] = r.getLine;
+});*/
+
+
+~initialpatch= 11999;
+
+~setPreset = {
+	arg g;
+	var p;
+	p = ~presets[g][0];
+	145.do({arg item;
+		var k = (p.at((item*2)) ++ p.at((item*2) + 1)).asInteger;
+		f.value(~cirklonCCparse[item][0],~cirklonCCparse[item][1],k);
+	});
+};
+
+r = Routine {
+	wait(0.1);
+	~setPreset.(~initialpatch);
+	postln("Initial patch loaded");
+}.play;
+
+///INTERFACE
+
+OSCdef( \note,
+	{
+		arg msg, time, addr, recvPort;
+		msg.postln;
+		~noteParser.(msg[1],msg[2])
+	},
+	"/note",
+	recvPort:57120
+);
+
+OSCdef( \knobs,
+	{
+		arg msg, time, addr, recvPort;
+		~organelleKeyVelocity = (msg[1] / 1023 * 126 + 1).asInteger;
+	},
+	"/knobs",
+	recvPort:4000
+);
+
+OSCdef( \RoutePhysicalKeys,
+	{
+
+		arg msg, time, addr, recvPort;
+
+		if(msg[1] == 0){
+			~self.sendMsg("/aux", msg[2]);
+		}{
+
+			if (msg[2] > 0){
+				~self.sendMsg("/note", msg[1] + 59, ~organelleKeyVelocity );
+			}{
+				~self.sendMsg("/note", msg[1] + 59, 0);
+			}
+		}
+	},
+	"/key",
+	recvPort:4000
+);
+
+
+/////SYNTHDEFS
+
 SynthDef(\InfEfx, {
 	arg outBus=0, gate,
 	lfoGet1 = 0, lfoGet2=1,
@@ -111,14 +237,7 @@ SynthDef(\DX7, {
 
 }).add;
 
-OSCdef( \note,
-	{
-		arg msg, time, addr, recvPort;
-		~mainCaller.value(msg[1],msg[2])
-	},
-	"/note",
-	recvPort:57120
-);
+
 
 ~graphics.(\Clear);
 m.sendMsg("/oled/line/1", "Hello world!");

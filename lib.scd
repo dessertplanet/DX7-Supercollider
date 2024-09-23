@@ -75,7 +75,6 @@
 
 };
 
-
 ~defjamHead1 = {
 	var abc = [], algo, fdbIndNo = Array.fill(42, 1);
 			algo = (~vr[128]).clip(0,31);
@@ -232,65 +231,4 @@
 	//a.postln;
 	a;
 
-};
-~noteParser = { arg vel, note;
-	1.do { arg yxx;
-			if(vel > 0,
-				{
-					//150.do({ arg c; ("cc#" ++ c.asString ++ " = " ++ ~vr[c]).postln}); //general cc printer, rates are not inverted.
-					if(~noteArrayDX7[note] !== nil,~noteArrayDX7[note].free);
-					if(~vr[137] == 1, {//lfo sync controller
-						if(~betass == 1,   {
-							~headno.free;
-						});
-						~betass = 1;
-						~headno = Synth.before(~scsynthDX7, \InfEfx, ~defjamHead0.());
-					},
-					{
-						if(~betass == 0,   {
-							~betass = 1;
-							~headno = Synth.before(~scsynthDX7, \InfEfx, ~defjamHead0.())
-						},
-						{
-							~headno.set(~defjamHead0.())
-						});
-					});
-					~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel),~scsynthDX7);
-					//~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel), ~scsynthDX7); //orjburayi addtotail diye degistirdin
-
-				},
-				{
-					~noteArrayDX7[note].set(\gate,0);
-					~noteArrayDX7[note] = nil;
-
-		})
-	}
-};
-
-
-f = { arg x, y ,z; //y value, z cc no
-	if(x == 3,
-		{ ~vr[y] = z },
-		{ ~vr[y + 128] = z }
-	)
-};
-
-//Creating a patch array from .afx file to prevent "unsaved file" error.
-/*r = File("DX7.afx".resolveRelative,"r");
-16384.do({arg item;
-	~dx7patches[item] = r.getLine;
-});*/
-
-~initialPatch = "17072404510300000139000532043950505050000100070716606538969993009900000000000000000100070700316000999999978200650000000000000100070700167732999280008909000000340000000100070700577729999760007492750102390000000100070700097744809385007499160200480000000200070700140053779298001453200000390000";
-
-~mainCaller = { arg note, vel;
-	if(vel > 0,{
-		var g = ~initialPatch;
-		145.do({arg item;
-			var k = (g.at((item*2)) ++ g.at((item*2) + 1)).asInteger;
-			f.value(~cirklonCCparse[item][0],~cirklonCCparse[item][1],k);
-			//~midiOutDX7.control(~~cirklonCCparse[item][0],~~cirklonCCparse[item][1],k);
-		});
-	});
-	~noteParser.value(vel, note)
 };

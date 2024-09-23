@@ -459,6 +459,7 @@ OSCdef( \KillPatch,
 //s.options.maxLogins = 4;
 //s.options.bindAddress = "0.0.0.0";
 
+Server.supernova;
 
 s.waitForBoot({
 	(
