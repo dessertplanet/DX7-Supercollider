@@ -5,6 +5,11 @@
 //Load file with additional functions
 "/tmp/patch/lib.scd".load;
 
+~graphics.(\Clear);
+
+m.sendMsg("/oled/line/1", "DX7-Supercollider:");
+m.sendMsg("/oled/line/2","loading 16384 presets");
+
 ~presetMeta = CSVFileReader.read("DX7-presets2.csv",true);
 
 ~presets = FileReader.read("DX7.afx");
@@ -69,7 +74,16 @@ f = { arg x, y ,z; //y value, z cc no
 });*/
 
 
-~initialpatch= 11999;
+~initialPreset= 0;
+~currentPreset = ~initialPreset;
+~currentBank = ~presetMeta[~currentPreset][1];
+~nextPreset = ~initialPreset;
+~nextBank = ~presetMeta[~initialPreset][1];
+~nextBankIndex = (~initialPreset / 512).floor + (~initialPreset % 512);
+~nextSubIndex = ~initialPreset % 32;
+~auxPressed = false;
+~octaveTable = [-2,-1,0,1,2];
+~currentOctave = 2;
 
 ~setPreset = {
 	arg g;
@@ -79,20 +93,31 @@ f = { arg x, y ,z; //y value, z cc no
 		var k = (p.at((item*2)) ++ p.at((item*2) + 1)).asInteger;
 		f.value(~cirklonCCparse[item][0],~cirklonCCparse[item][1],k);
 	});
+	~currentPreset = g;
 };
 
 r = Routine {
 	wait(0.1);
-	~setPreset.(~initialpatch);
-	postln("Initial patch loaded");
+	~setPreset.(~initialPreset);
+	postln("Initial preset loaded");
 }.play;
 
 ///INTERFACE
 
+~rawKnobs = Array.newClear(6);
+m.sendMsg("/enablepatchsub", 1);
+
+~refreshScreen = {
+	m.sendMsg("/oled/line/1", ~presetMeta[~nextPreset][3]);
+	m.sendMsg("/oled/line/2", "Bank " ++ ~nextBank);
+	m.sendMsg("/oled/line/3", "Vel " ++ ~organelleKeyVelocity.asString.padLeft(3) ++ " Oct "
+		++ ~octaveTable[~currentOctave].asString.padLeft(2) ++ " #"
+		++ (~nextPreset +  1).asString.padLeft(5));
+};
+
 OSCdef( \note,
 	{
 		arg msg, time, addr, recvPort;
-		msg.postln;
 		~noteParser.(msg[1],msg[2])
 	},
 	"/note",
@@ -102,7 +127,34 @@ OSCdef( \note,
 OSCdef( \knobs,
 	{
 		arg msg, time, addr, recvPort;
-		~organelleKeyVelocity = (msg[1] / 1023 * 126 + 1).asInteger;
+
+		if ((msg[1] != ~rawKnobs[0]) && (~rawKnobs[0] != nil), {
+			~nextSubIndex = (msg[1] / 1023 * 31).asInteger;
+			~nextPreset = ~nextBankIndex * 32 + ~nextSubIndex;
+			~nextBank = ~presetMeta[~nextPreset][1];
+		});
+
+		if ((msg[2] != ~rawKnobs[1]) && (~rawKnobs[1] != nil), {
+			~nextBankIndex = (msg[2] / 1023 * 511).asInteger;
+			~nextPreset = ~nextBankIndex * 32 + ~nextSubIndex;
+			~nextBank = ~presetMeta[~nextPreset][1];
+		});
+
+		if ((msg[3] != ~rawKnobs[2]) && (~rawKnobs[2] != nil), {
+			~currentOctave = (msg[3] / 1023 * 4).asInteger;
+
+		});
+
+		if ((msg[4] != ~rawKnobs[3]) && (~rawKnobs[3] != nil), {
+			~organelleKeyVelocity = (msg[4] / 1023 * 126 + 1).asInteger;
+		});
+
+		5.do {
+			arg i;
+			~rawKnobs[i] = msg[i + 1];
+		};
+
+		~refreshScreen.();
 	},
 	"/knobs",
 	recvPort:4000
@@ -128,6 +180,52 @@ OSCdef( \RoutePhysicalKeys,
 	recvPort:4000
 );
 
+OSCdef( \enc,
+	{
+		arg msg, time, addr, recvPort;
+
+		if(msg[1]>0) {
+			if(~nextPreset<16383){
+				~nextPreset = ~nextPreset + 1;
+			}
+		}{
+			if(~nextPreset>0){
+				~nextPreset = ~nextPreset - 1;
+			}
+		};
+
+		~nextBank = ~presetMeta[~nextPreset][1];
+
+		~refreshScreen.();
+	},
+	"/encoder/turn",
+	recvPort:4000
+);
+
+OSCdef( \encbut,
+	{
+		arg msg, time, addr, recvPort;
+		//press encoder to pop patch menu
+		m.sendMsg("/gohome");
+
+	},
+	"/encoder/button",
+	recvPort:4000
+);
+
+OSCdef( \aux,
+	{
+		arg msg, time, addr, recvPort;
+		if(msg[1]>0) {
+			~auxPressed = true;
+			~setPreset.(~nextPreset);
+		}{
+			~auxPressed = false;
+		};
+	},
+	"/aux",
+	recvPort:57120
+);
 
 /////SYNTHDEFS
 
@@ -240,4 +338,4 @@ SynthDef(\DX7, {
 
 
 ~graphics.(\Clear);
-m.sendMsg("/oled/line/1", "Hello world!");
+~refreshScreen.();
