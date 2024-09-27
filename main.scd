@@ -21,7 +21,6 @@ buffers and busses
 ~busMeAmp = Bus.audio(s, 1);
 ~busMePitch = Bus.audio(s, 1);
 
-
 ///MAIN FUNCTIONS
 
 ~noteParser = { arg note, vel;
@@ -84,6 +83,37 @@ f = { arg x, y ,z; //y value, z cc no
 ~auxPressed = false;
 ~octaveTable = [-2,-1,0,1,2];
 ~currentOctave = 2;
+~auxLongPressed = false;
+
+////KEYBOARD VISUAL
+
+~drawKeyboard = {
+
+	14.do{
+		arg i;
+		~graphics.(\Circle, /*x:*/ 5 + (9*i), /*y:*/ 54, /*radius:*/ 3);
+	};
+
+	2.do{
+		arg i;
+		~graphics.(\Circle, /*x:*/ 10 + (9*i), /*y:*/ 47, /*radius:*/ 3);
+	};
+
+	3.do{
+		arg i;
+		~graphics.(\Circle, /*x:*/ 36 + (9*i), /*y:*/ 47, /*radius:*/ 3);
+	};
+
+	2.do{
+		arg i;
+		~graphics.(\Circle, /*x:*/ 72 + (9*i), /*y:*/ 47, /*radius:*/ 3);
+	};
+
+	3.do{
+		arg i;
+		~graphics.(\Circle, /*x:*/ 99 + (9*i), /*y:*/ 47, /*radius:*/ 3);
+	};
+};
 
 ~setPreset = {
 	arg g;
@@ -94,11 +124,13 @@ f = { arg x, y ,z; //y value, z cc no
 		f.value(~cirklonCCparse[item][0],~cirklonCCparse[item][1],k);
 	});
 	~currentPreset = g;
+	~refreshScreen.();
 };
 
 r = Routine {
 	wait(0.1);
 	~setPreset.(~initialPreset);
+	~drawKeyboard.();
 	postln("Initial preset loaded");
 }.play;
 
@@ -108,11 +140,18 @@ r = Routine {
 m.sendMsg("/enablepatchsub", 1);
 
 ~refreshScreen = {
-	m.sendMsg("/oled/line/1", ~presetMeta[~nextPreset][3]);
-	m.sendMsg("/oled/line/2", "Bank " ++ ~nextBank);
-	m.sendMsg("/oled/line/3", "Vel " ++ ~organelleKeyVelocity.asString.padLeft(3) ++ " Oct "
-		++ ~octaveTable[~currentOctave].asString.padLeft(2) ++ " #"
-		++ (~nextPreset +  1).asString.padLeft(5));
+	m.sendMsg("/oled/line/1", " " ++ ~presetMeta[~nextPreset][3].padRight(12) ++ ("#" ++ (~nextPreset.asInteger + 1)).asString.padLeft(6));
+	m.sendMsg("/oled/line/2", " bank " ++ ~nextBank.padRight(9));
+	m.sendMsg("/oled/line/3", " vel " ++ ~organelleKeyVelocity.asString.padLeft(3) ++ "  |  oct "
+		++ ~octaveTable[~currentOctave].asString.padLeft(2) ++ " ");
+	if (~currentPreset == ~nextPreset){~graphics.(\Circle, /*x:*/ 3, /*y:*/ 13, /*radius:*/ 1);};
+};
+
+~longPressTimer = Routine {
+	wait(1.5);
+
+	~auxLongPressed = true;
+	~setPreset.(~nextPreset);
 };
 
 OSCdef( \note,
@@ -141,13 +180,14 @@ OSCdef( \knobs,
 		});
 
 		if ((msg[3] != ~rawKnobs[2]) && (~rawKnobs[2] != nil), {
-			~currentOctave = (msg[3] / 1023 * 4).asInteger;
-
+			~organelleKeyVelocity = (msg[3] / 1023 * 126 + 1).asInteger;
 		});
 
 		if ((msg[4] != ~rawKnobs[3]) && (~rawKnobs[3] != nil), {
-			~organelleKeyVelocity = (msg[4] / 1023 * 126 + 1).asInteger;
+			~currentOctave = (msg[4] / 1023 * 4).asInteger;
+
 		});
+
 
 		5.do {
 			arg i;
@@ -170,9 +210,9 @@ OSCdef( \RoutePhysicalKeys,
 		}{
 
 			if (msg[2] > 0){
-				~self.sendMsg("/note", msg[1] + 59, ~organelleKeyVelocity );
+				~self.sendMsg("/note", msg[1] + 59 + (~octaveTable[~currentOctave] * 12), ~organelleKeyVelocity );
 			}{
-				~self.sendMsg("/note", msg[1] + 59, 0);
+				~self.sendMsg("/note", msg[1] + 59 + (~octaveTable[~currentOctave] * 12), 0);
 			}
 		}
 	},
@@ -183,15 +223,22 @@ OSCdef( \RoutePhysicalKeys,
 OSCdef( \enc,
 	{
 		arg msg, time, addr, recvPort;
+		var delta;
+
+		if(~auxPressed){
+			delta = 32;
+		}{
+			delta = 1;
+		};
 
 		if(msg[1]>0) {
-			if(~nextPreset<16383){
-				~nextPreset = ~nextPreset + 1;
-			}
+			if(~nextPreset<(16384-delta)){
+				~nextPreset = ~nextPreset + delta;
+			}{~nextPreset = 16383}
 		}{
-			if(~nextPreset>0){
-				~nextPreset = ~nextPreset - 1;
-			}
+			if(~nextPreset>=delta){
+				~nextPreset = ~nextPreset - delta;
+			}{~nextPreset = 0}
 		};
 
 		~nextBank = ~presetMeta[~nextPreset][1];
@@ -216,11 +263,16 @@ OSCdef( \encbut,
 OSCdef( \aux,
 	{
 		arg msg, time, addr, recvPort;
+		msg.postln;
 		if(msg[1]>0) {
 			~auxPressed = true;
-			~setPreset.(~nextPreset);
+			~longPressTimer.play;
+			m.sendMsg("/led", 4);
 		}{
 			~auxPressed = false;
+			~auxLongPressed = false;
+			~longPressTimer.stop.reset;
+			m.sendMsg("/led", 0);
 		};
 	},
 	"/aux",
