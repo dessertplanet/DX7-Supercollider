@@ -84,6 +84,38 @@ f = { arg x, y ,z; //y value, z cc no
 ~octaveTable = [-2,-1,0,1,2];
 ~currentOctave = 2;
 ~auxLongPressed = false;
+~whiteKeyY = 54;
+~blackKeyY = 47;
+~keyGraphicXY = [
+	[5,~whiteKeyY],
+	[10,~blackKeyY],
+	[14,~whiteKeyY],
+	[19,~blackKeyY],
+	[23,~whiteKeyY],
+	[32,~whiteKeyY],
+	[36,~blackKeyY],
+	[41,~whiteKeyY],
+	[45,~blackKeyY],
+	[50,~whiteKeyY],
+	[54,~blackKeyY],
+	[59,~whiteKeyY],
+	[68,~whiteKeyY],
+	[72,~blackKeyY],
+	[77,~whiteKeyY],
+	[81,~blackKeyY],
+	[86,~whiteKeyY],
+	[95,~whiteKeyY],
+	[99,~blackKeyY],
+	[104,~whiteKeyY],
+	[108,~blackKeyY],
+	[113,~whiteKeyY],
+	[117,~blackKeyY],
+	[122,~whiteKeyY]
+];
+
+~savedPresets = Array.newClear(24);
+~loadedPresetKey = nil;
+
 
 ////KEYBOARD VISUAL
 
@@ -134,6 +166,26 @@ r = Routine {
 	postln("Initial preset loaded");
 }.play;
 
+~selectedKey = {
+	arg index;
+
+	~graphics.(\Circle, /*x:*/ ~keyGraphicXY[index][0], /*y:*/ ~keyGraphicXY[index][1], /*radius:*/ 1);
+	~graphics.(\Circle, /*x:*/ ~keyGraphicXY[index][0], /*y:*/ ~keyGraphicXY[index][1], /*radius:*/ 2);
+
+	if (~loadedPresetKey != nil) {
+
+	~graphics.(\Circle, /*x:*/ ~keyGraphicXY[~loadedPresetKey][0], /*y:*/ ~keyGraphicXY[~loadedPresetKey][1], /*radius:*/ 1, false);
+	~graphics.(\Circle, /*x:*/ ~keyGraphicXY[~loadedPresetKey][0], /*y:*/ ~keyGraphicXY[~loadedPresetKey][1], /*radius:*/ 2, false);
+	}
+};
+
+~messageBlast = Routine {
+	arg message;
+	m.sendMsg("/oled/line/1", "  " ++ message);
+	wait(1);
+	~refreshScreen.();
+};
+
 ///INTERFACE
 
 ~rawKnobs = Array.newClear(6);
@@ -145,6 +197,8 @@ m.sendMsg("/enablepatchsub", 1);
 	m.sendMsg("/oled/line/3", " vel " ++ ~organelleKeyVelocity.asString.padLeft(3) ++ "  |  oct "
 		++ ~octaveTable[~currentOctave].asString.padLeft(2) ++ " ");
 	if (~currentPreset == ~nextPreset){~graphics.(\Circle, /*x:*/ 3, /*y:*/ 13, /*radius:*/ 1);};
+
+	~messageBlast.stop.reset;
 };
 
 ~longPressTimer = Routine {
@@ -152,6 +206,21 @@ m.sendMsg("/enablepatchsub", 1);
 
 	~auxLongPressed = true;
 	~setPreset.(~nextPreset);
+};
+
+~savePreset = Routine {
+	arg key, preset;
+	wait(1.5);
+
+	if (~savedPresets[key] == nil) {
+		~messageBlast.("PRESET STORED").play;
+		~savedPresets[key] = preset;
+		~graphics.(\SetPixel, ~keyGraphicXY[key][0], ~keyGraphicXY[key][1])
+	}{
+		~messageBlast.("PRESET CLEARED").play;
+		~savedPresets[key] = nil;
+		~graphics.(\SetPixel, ~keyGraphicXY[key][0], ~keyGraphicXY[key][1], false)
+	}
 };
 
 OSCdef( \note,
@@ -210,11 +279,24 @@ OSCdef( \RoutePhysicalKeys,
 		}{
 
 			if (msg[2] > 0){
-				~self.sendMsg("/note", msg[1] + 59 + (~octaveTable[~currentOctave] * 12), ~organelleKeyVelocity );
+				if(~auxPressed){
+					//AUX + KEY DOWN
+					~savePreset.(msg[1],~nextPreset);
+					~auxLongPressed.stop.reset;
+
+				}{
+					~self.sendMsg("/note", msg[1] + 59 + (~octaveTable[~currentOctave] * 12), ~organelleKeyVelocity );
+				}
 			}{
-				~self.sendMsg("/note", msg[1] + 59 + (~octaveTable[~currentOctave] * 12), 0);
+				if(~auxPressed){
+					//AUX + KEY UP
+				}{
+					~self.sendMsg("/note", msg[1] + 59 + (~octaveTable[~currentOctave] * 12), 0);
+				};
 			}
-		}
+
+		};
+		if (msg[2] == 0 ) {~savePreset.stop.reset}
 	},
 	"/key",
 	recvPort:4000
@@ -263,7 +345,7 @@ OSCdef( \encbut,
 OSCdef( \aux,
 	{
 		arg msg, time, addr, recvPort;
-		msg.postln;
+
 		if(msg[1]>0) {
 			~auxPressed = true;
 			~longPressTimer.play;
