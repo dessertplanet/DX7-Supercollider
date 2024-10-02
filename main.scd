@@ -66,16 +66,9 @@ f = { arg x, y ,z; //y value, z cc no
 	)
 };
 
-//Creating a patch array from .afx file to prevent "unsaved file" error.
-/*r = File("DX7.afx".resolveRelative,"r");
-16384.do({arg item;
-	~dx7patches[item] = r.getLine;
-});*/
-
 
 ~initialPreset= 0;
 ~currentPreset = ~initialPreset;
-~currentBank = ~presetMeta[~currentPreset][1];
 ~nextPreset = ~initialPreset;
 ~nextBank = ~presetMeta[~initialPreset][1];
 ~nextBankIndex = (~initialPreset / 512).floor + (~initialPreset % 512);
@@ -83,7 +76,7 @@ f = { arg x, y ,z; //y value, z cc no
 ~auxPressed = false;
 ~octaveTable = [-2,-1,0,1,2];
 ~currentOctave = 2;
-~auxLongPressed = false;
+~longPressed = false;
 ~whiteKeyY = 54;
 ~blackKeyY = 47;
 ~keyGraphicXY = [
@@ -148,6 +141,7 @@ f = { arg x, y ,z; //y value, z cc no
 ~setPreset = {
 	arg g;
 	var p;
+	postln("set preset " ++ g);
 	p = ~presets[g][0];
 	145.do({arg item;
 		var k = (p.at((item*2)) ++ p.at((item*2) + 1)).asInteger;
@@ -158,7 +152,7 @@ f = { arg x, y ,z; //y value, z cc no
 	~refreshKeyGraphic.();
 };
 
-r = Routine {
+~initalSetup = Routine {
 	wait(0.1);
 	~setPreset.(~initialPreset);
 	~drawKeyboard.();
@@ -167,7 +161,10 @@ r = Routine {
 
 ~messageBlast = Routine {
 	arg message;
-	m.sendMsg("/oled/line/1", "  " ++ message);
+	m.sendMsg("/oled/line/1", " ");
+	m.sendMsg("/oled/line/2", "  " ++ message);
+	m.sendMsg("/oled/line/3", " ");
+
 	wait(1);
 	~refreshScreen.();
 };
@@ -178,6 +175,7 @@ r = Routine {
 m.sendMsg("/enablepatchsub", 1);
 
 ~refreshScreen = {
+	~nextBank = ~presetMeta[~nextPreset][1];
 	m.sendMsg("/oled/line/1", " " ++ ~presetMeta[~nextPreset][3].padRight(12) ++ ("#" ++ (~nextPreset.asInteger + 1)).asString.padLeft(6));
 	m.sendMsg("/oled/line/2", " bank " ++ ~nextBank.padRight(9));
 	m.sendMsg("/oled/line/3", " vel " ++ ~organelleKeyVelocity.asString.padLeft(3) ++ "  |  oct "
@@ -187,12 +185,8 @@ m.sendMsg("/enablepatchsub", 1);
 	~messageBlast.stop.reset;
 };
 
-~longPressTimer = Routine {
-	wait(1.5);
 
-	~auxLongPressed = true;
-	//postln("setting new preset");
-};
+
 
 ~refreshKeyGraphic = {
 	~savedPresets.do{
@@ -254,6 +248,8 @@ OSCdef( \knobs,
 			~rawKnobs[i] = msg[i + 1];
 		};
 
+
+		~messageBlast.stop.reset;
 		~refreshScreen.();
 	},
 	"/knobs",
@@ -265,27 +261,36 @@ OSCdef( \RoutePhysicalKeys,
 
 		arg msg, time, addr, recvPort;
 
+
 		if(msg[1] == 0){
 			~self.sendMsg("/aux", msg[2]);
 		}{
 
 			if (msg[2] > 0){
+				~longPressed = false;
 				if(~auxPressed){
 					//AUX + KEY DOWN
-					~auxLongPressed = false;
 					~longPressTimer.stop.reset;
+					~longPressTimer.play;
+
 				}{
 					~self.sendMsg("/note", msg[1] + 59 + (~octaveTable[~currentOctave] * 12), ~organelleKeyVelocity );
 				}
 			}{
 				if(~auxPressed){
 					//AUX + KEY UP
+					if(~longPressed){
+						~longPressed = false;
+						~messageBlast.("save a preset");
+					}{
+						~messageBlast.("load a preset");
+					}
 				}{
 					~self.sendMsg("/note", msg[1] + 59 + (~octaveTable[~currentOctave] * 12), 0);
 				};
 			}
-
 		};
+		~messageBlast.stop.reset;
 	},
 	"/key",
 	recvPort:4000
@@ -331,6 +336,12 @@ OSCdef( \encbut,
 	recvPort:4000
 );
 
+~longPressTimer = Routine {
+	wait(1.5);
+
+	~longPressed = true;
+};
+
 OSCdef( \aux,
 	{
 		arg msg, time, addr, recvPort;
@@ -341,16 +352,16 @@ OSCdef( \aux,
 			m.sendMsg("/led", 4);
 		}{
 			~longPressTimer.stop.reset;
-			if(~auxLongPressed == false){
+			if(~longPressed == false){
 				~nextPreset = ~currentPreset;
 				~refreshScreen.();
 			}{
-				~setPreset.(~nextPreset)
+				~setPreset.(~nextPreset);
 			};
 			~auxPressed = false;
 			m.sendMsg("/led", 0);
 		};
-		~auxLongPressed = false;
+		~longPressed = false;
 	},
 	"/aux",
 	recvPort:57120
