@@ -10,9 +10,11 @@
 m.sendMsg("/oled/line/1", "DX7-Supercollider:");
 m.sendMsg("/oled/line/2","loading 16384 presets");
 
-~presetMeta = CSVFileReader.read("DX7-presets2.csv",true);
+~presetMeta = CSVFileReader.read("/tmp/patch/DX7-presets2.csv",true);
 
-~presets = FileReader.read("DX7.afx");
+~presets = FileReader.read("/tmp/patch/DX7.afx");
+
+~presetPath = "/tmp/patch/dx7_state";
 
 /*
 buffers and busses
@@ -65,7 +67,6 @@ f = { arg x, y ,z; //y value, z cc no
 		{ ~vr[y + 128] = z }
 	)
 };
-
 
 ~initialPreset= 0;
 ~currentPreset = ~initialPreset;
@@ -137,18 +138,12 @@ f = { arg x, y ,z; //y value, z cc no
 	"B2",
 ];
 
-~savedPresets = Array.newClear(24);
-
 ~updateMetadata = {
 	~nextBank = ~presetMeta[~nextPreset][1];
 	~nextBankIndex = (~nextPreset / 511).floor + (~nextPreset % 511);
 	~nextSubIndex = ~nextPreset % 31;
 };
 
-~backupPresets = {
-
-	////BACKUP LOGIC HERE??
-};
 
 ~longPressAux = Routine.new({
 
@@ -180,9 +175,6 @@ f = { arg x, y ,z; //y value, z cc no
 	};
 
 	~refreshKeyGraphic.();
-
-	~backupPresets.();
-
 
 	~messageBlast.(message ++ ~keyNotes[~selectedKey]);
 
@@ -615,7 +607,47 @@ fork {
 	~setPreset.(~initialPreset);
 	~drawKeyboard.();
 	postln("Initial preset loaded");
+	if(File.exists(~presetPath)){
+		postln("found preset file, loading saved presets");
+		~savedPresets = FileReader.read(~presetPath);
+		~savedPresets.do({
+			arg item, i;
+			if(item[0] == "nil"){
+				~savedPresets[i] = nil;
+			}{
+				~savedPresets[i] = item[0].asInteger;
+			}
+		});
+
+		~refreshScreen.();
+		~refreshKeyGraphic.();
+	}{
+		~savedPresets = Array.newClear(24);
+	};
 };
 
 ~graphics.(\Clear);
 ~refreshScreen.();
+
+
+OSCdef( \save,
+	{
+		arg msg, time, addr, recvPort;
+		var presetFile, state = "";
+
+		File.mkdir("/tmp/state");
+
+		presetFile = File.open("/tmp/state/dx7_state","w");
+
+		~savedPresets.do({
+			arg item;
+			state = state ++ item ++ "\n"
+		});
+
+		presetFile.write(state);
+		presetFile.close;
+
+		},
+	"/saveState",
+	recvPort:4000
+);
