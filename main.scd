@@ -84,6 +84,7 @@ f = { arg x, y ,z; //y value, z cc no
 ~whiteKeyY = 54;
 ~blackKeyY = 47;
 ~selectedKey = nil;
+~sustain = false;
 ~keyGraphicXY = [
 	[5,~whiteKeyY],
 	[10,~blackKeyY],
@@ -492,6 +493,51 @@ OSCdef( \aux,
 	},
 	"/aux",
 	recvPort:57120
+);
+
+OSCdef( \fs,
+	{
+		arg msg, time, addr, recvPort;
+
+		if(msg[1]>0){
+			~self.sendMsg("/sustain", 0)
+		}{
+			~self.sendMsg("/sustain", 1)
+		};
+	},
+	"/fs",
+	recvPort:4000
+);
+
+
+OSCdef( \sustain,
+	{
+		arg msg, time, addr, recvPort;
+
+		if (msg[1]>0){
+			~sustain = true;
+		}{
+			~sustain = false;
+		};
+
+		postln("Sustain pedal state: " ++ ~sustain);
+	},
+	"/sustain",
+	recvPort:57120
+);
+
+MIDIdef.cc(\sustainCC,
+	{
+		arg ... msg;
+
+		if (msg[0]>63){
+			~self.sendMsg("/sustain", 1);
+		}{
+			~self.sendMsg("/sustain", 0);
+		}
+
+	},
+	64 //SUSTAIN PEDAL CC VALUE;
 );
 
 /////SYNTHDEFS
