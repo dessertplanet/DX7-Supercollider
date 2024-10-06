@@ -68,6 +68,9 @@ f = { arg x, y ,z; //y value, z cc no
 	)
 };
 
+~sustain = false;
+~sustainedNotes = Set.new(128);
+~keysDown = Set.new(128);
 ~initialPreset= 0;
 ~currentPreset = ~initialPreset;
 ~nextPreset = ~initialPreset;
@@ -84,7 +87,6 @@ f = { arg x, y ,z; //y value, z cc no
 ~whiteKeyY = 54;
 ~blackKeyY = 47;
 ~selectedKey = nil;
-~sustain = false;
 ~keyGraphicXY = [
 	[5,~whiteKeyY],
 	[10,~blackKeyY],
@@ -323,14 +325,7 @@ m.sendMsg("/enablepatchsub", 1);
 	}
 };
 
-OSCdef( \note,
-	{
-		arg msg, time, addr, recvPort;
-		~noteParser.(msg[1],msg[2])
-	},
-	"/note",
-	recvPort:57120
-);
+
 
 OSCdef( \knobs,
 	{
@@ -374,6 +369,7 @@ OSCdef( \RoutePhysicalKeys,
 	{
 
 		arg msg, time, addr, recvPort;
+		var src = \phys;
 
 
 		if(msg[1] == 0){
@@ -390,14 +386,14 @@ OSCdef( \RoutePhysicalKeys,
 						~auxPlusKey = true;
 					}
 				}{
-					~self.sendMsg("/note", msg[1] + 59 + (~octaveTable[~currentOctave] * 12), ~organelleKeyVelocity );
+					~self.sendMsg("/note", msg[1] + 59 + (~octaveTable[~currentOctave] * 12), ~organelleKeyVelocity,src );
 				}
 			}{
 				if(~auxPressed){
 					//AUX + KEY UP
 
 				}{
-					~self.sendMsg("/note", msg[1] + 59 + (~octaveTable[~currentOctave] * 12), 0);
+					~self.sendMsg("/note", msg[1] + 59 + (~octaveTable[~currentOctave] * 12), 0,src);
 				};
 
 				if(~auxPlusKey){
@@ -509,35 +505,64 @@ OSCdef( \fs,
 	recvPort:4000
 );
 
+MIDIdef.cc(\sustainCC,
+	{
+		arg ... msg;
+
+		if (msg[0]>125){
+			~self.sendMsg("/sustain", 1);
+		};
+		if(msg[0]<5){
+			~self.sendMsg("/sustain", 0);
+		}
+
+	},
+	64 //SUSTAIN PEDAL CC VALUE;
+);
 
 OSCdef( \sustain,
 	{
 		arg msg, time, addr, recvPort;
 
 		if (msg[1]>0){
+			~sustainedNotes = Set.newFrom(~keysDown);
 			~sustain = true;
+
 		}{
 			~sustain = false;
+			~sustainedNotes.do{
+				arg item;
+				if(~keysDown.includes(item)== false){
+					~noteParser.(item, 0);
+				}
+			};
+			~sustainedNotes = Set.new;
 		};
 
-		postln("Sustain pedal state: " ++ ~sustain);
 	},
 	"/sustain",
 	recvPort:57120
 );
 
-MIDIdef.cc(\sustainCC,
+OSCdef( \note,
 	{
-		arg ... msg;
+		arg msg, time, addr, recvPort;
 
-		if (msg[0]>63){
-			~self.sendMsg("/sustain", 1);
+		if(msg[2]>0){
+
+			~keysDown.add(msg[1]);
+			if(~sustain){~sustainedNotes.add(msg[1])};
+			~noteParser.(msg[1],msg[2]);
 		}{
-			~self.sendMsg("/sustain", 0);
-		}
+			~keysDown.remove(msg[1]);
+			if (~sustainedNotes.includes(msg[1])==false){
+				~noteParser.(msg[1],msg[2]);
+			}
+		};
 
 	},
-	64 //SUSTAIN PEDAL CC VALUE;
+	"/note",
+	recvPort:57120
 );
 
 /////SYNTHDEFS
