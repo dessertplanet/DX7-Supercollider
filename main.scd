@@ -80,6 +80,7 @@ f = { arg x, y ,z; //y value, z cc no
 ~auxPressed = false;
 ~octaveTable = [-2,-1,0,1,2];
 ~currentOctave = 2;
+~organelleTranspose = 0;
 ~auxPlusKey = false;
 ~auxPlusEnc = false;
 ~longPressAuxState = false;
@@ -113,6 +114,8 @@ f = { arg x, y ,z; //y value, z cc no
 	[117,~blackKeyY],
 	[122,~whiteKeyY]
 ];
+~bend = 0;
+~bendRange = 7; // range for pitch bend. +/- in semitones.
 
 ~keyNotes = [
 	"C1",
@@ -386,14 +389,14 @@ OSCdef( \RoutePhysicalKeys,
 						~auxPlusKey = true;
 					}
 				}{
-					~self.sendMsg("/note", msg[1] + 59 + (~octaveTable[~currentOctave] * 12), ~organelleKeyVelocity,src );
+					~self.sendMsg("/note", msg[1] + 59, ~organelleKeyVelocity,src );
 				}
 			}{
 				if(~auxPressed){
 					//AUX + KEY UP
 
 				}{
-					~self.sendMsg("/note", msg[1] + 59 + (~octaveTable[~currentOctave] * 12), 0,src);
+					~self.sendMsg("/note", msg[1] + 59, 0,src);
 				};
 
 				if(~auxPlusKey){
@@ -548,7 +551,13 @@ OSCdef( \note,
 	{
 		arg msg, time, addr, recvPort;
 
+
 		if(msg[2]>0){
+			if(msg[3] == \phys){
+				~organelleTranspose = ~octaveTable[~currentOctave];
+			}{
+				~organelleTranspose = 0;
+			};
 
 			~keysDown.add(msg[1]);
 			if(~sustain){~sustainedNotes.add(msg[1])};
@@ -563,6 +572,26 @@ OSCdef( \note,
 	},
 	"/note",
 	recvPort:57120
+);
+
+MIDIdef.bend(\pitchbend,
+	{
+		arg raw;
+
+		~bend = (raw - 8192).clip(-8191,8191) / 8191;
+
+		//bend is calculated to be high resolution pitch bend multiplier from -1.0 to 1.0, 0 at rest.
+
+		~noteArrayDX7.do({
+			arg item, i;
+
+			if(item != nil){
+				var new;
+				new = (i + ~vr[131] - 24 + (~bend * ~bendRange)).midicps;
+				item.set(\pitch, new);
+			}
+		})
+	}
 );
 
 /////SYNTHDEFS
@@ -637,12 +666,12 @@ SynthDef(\DX7, {
 	envAmp6 = EnvGen.kr(envEnv6, gate, doneAction:0 );
 	//	envEnv1.test.plot;
 	ctls = [
-		[coars1 * fine_1 * ((pitch * noteBlok1) + ((detun1-7)/32)) * (envAmpP.midiratio) * Lag2.ar(In.ar(~busMePitch),0.01),  Rand(0,2pi) * osc_sync, envAmp1 * (Lag2.ar(In.ar(~busMeAmp),0.01) * (modSens1/3)).dbamp],
-		[coars2 * fine_2 * ((pitch  * noteBlok2) + ((detun2-7)/32)) * (envAmpP.midiratio) * Lag2.ar(In.ar(~busMePitch),0.01),  Rand(0,2pi) * osc_sync, envAmp2 * (Lag2.ar(In.ar(~busMeAmp),0.01) * (modSens2/3)).dbamp],
-		[coars3 * fine_3 * ((pitch * noteBlok3) + ((detun3-7)/32)) * (envAmpP.midiratio) * Lag2.ar(In.ar(~busMePitch),0.01),  Rand(0,2pi) * osc_sync, envAmp3 * (Lag2.ar(In.ar(~busMeAmp),0.01) * (modSens3/3)).dbamp],
-		[coars4 * fine_4 * ((pitch  * noteBlok4) + ((detun4-7)/32)) * (envAmpP.midiratio) * Lag2.ar(In.ar(~busMePitch),0.01),  Rand(0,2pi) * osc_sync, envAmp4 * (Lag2.ar(In.ar(~busMeAmp),0.01) * (modSens4/3)).dbamp],
-		[coars5 * fine_5 * ((pitch  * noteBlok5) + ((detun5-7)/32)) * (envAmpP.midiratio) * Lag2.ar(In.ar(~busMePitch),0.01),  Rand(0,2pi) * osc_sync, envAmp5 * (Lag2.ar(In.ar(~busMeAmp),0.01) * (modSens5/3)).dbamp],
-		[coars6 * fine_6 * ((pitch  * noteBlok6) + ((detun6-7)/32)) * (envAmpP.midiratio) * Lag2.ar(In.ar(~busMePitch),0.01),  Rand(0,2pi) * osc_sync, envAmp6 * (Lag2.ar(In.ar(~busMeAmp),0.01) * (modSens6/3)).dbamp]
+		[coars1 * fine_1 * ((pitch.lag2 * noteBlok1) + ((detun1-7)/32)) * (envAmpP.midiratio) * Lag2.ar(In.ar(~busMePitch),0.01),  Rand(0,2pi) * osc_sync, envAmp1 * (Lag2.ar(In.ar(~busMeAmp),0.01) * (modSens1/3)).dbamp],
+		[coars2 * fine_2 * ((pitch.lag2  * noteBlok2) + ((detun2-7)/32)) * (envAmpP.midiratio) * Lag2.ar(In.ar(~busMePitch),0.01),  Rand(0,2pi) * osc_sync, envAmp2 * (Lag2.ar(In.ar(~busMeAmp),0.01) * (modSens2/3)).dbamp],
+		[coars3 * fine_3 * ((pitch.lag2 * noteBlok3) + ((detun3-7)/32)) * (envAmpP.midiratio) * Lag2.ar(In.ar(~busMePitch),0.01),  Rand(0,2pi) * osc_sync, envAmp3 * (Lag2.ar(In.ar(~busMeAmp),0.01) * (modSens3/3)).dbamp],
+		[coars4 * fine_4 * ((pitch.lag2  * noteBlok4) + ((detun4-7)/32)) * (envAmpP.midiratio) * Lag2.ar(In.ar(~busMePitch),0.01),  Rand(0,2pi) * osc_sync, envAmp4 * (Lag2.ar(In.ar(~busMeAmp),0.01) * (modSens4/3)).dbamp],
+		[coars5 * fine_5 * ((pitch.lag2  * noteBlok5) + ((detun5-7)/32)) * (envAmpP.midiratio) * Lag2.ar(In.ar(~busMePitch),0.01),  Rand(0,2pi) * osc_sync, envAmp5 * (Lag2.ar(In.ar(~busMeAmp),0.01) * (modSens5/3)).dbamp],
+		[coars6 * fine_6 * ((pitch.lag2  * noteBlok6) + ((detun6-7)/32)) * (envAmpP.midiratio) * Lag2.ar(In.ar(~busMePitch),0.01),  Rand(0,2pi) * osc_sync, envAmp6 * (Lag2.ar(In.ar(~busMeAmp),0.01) * (modSens6/3)).dbamp]
 	];
 	mods = [
 		[dn0, dn1, dn2, dn3, dn4, dn5],
@@ -662,7 +691,7 @@ SynthDef(\DX7, {
 		(out[4] * 1 * dn40),
 		(out[5] * 1 * dn41),
 	]);
-	FreeSelfWhenDone.kr(Line.kr(0, 1, 10));
+	FreeSelfWhenDone.kr(Line.kr(0, 1, 20));
 	kilnod = DetectSilence.ar(out, 0.01, 0.2, doneAction:2);
 	//out = out * Lag2.ar(In.ar(busMe),0.01);
 	//Out.ar([0,1], 0.5 * In.ar(busMe)); //deneme

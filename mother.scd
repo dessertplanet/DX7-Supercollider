@@ -187,11 +187,18 @@ OSCdef( \rcvPeakRMS,
 
 	//this function is called once the server is booted.
 
-	path = "/sdcard/patch_loaded.sh";
+
 
 	MIDIClient.init(nil,nil,false);
 
-	sources = MIDIClient.sources;
+	MIDIIn.connectAll();
+
+
+	//Below is the "hard way" to do MIDI for organelle, honoring what is in settings- if you prefer this you can
+	//use this code, otherwise, we are doing the easy thing and connecting to all available MIDI devices above.
+	/*sources = MIDIClient.sources;
+
+	path = "/sdcard/patch_loaded.sh";
 
 	MIDIIn.connect(0, MIDIIn.findPort("ttymidi", "MIDI in"));
 
@@ -212,7 +219,7 @@ OSCdef( \rcvPeakRMS,
 				MIDIIn.connect(1, MIDIIn.findPort(item.device, item.name));
 			});
 		})
-	}
+	}*/
 };
 
 //By default we route midi note ons and off to the /note OSC address on the language side (57120) so that they can be easily processed alongside physical key input
