@@ -1,7 +1,7 @@
 //Declare variables for use in Main!
 
 //~scsynthDX7 = s.defaultGroup;
-~scsynthDX7 = ParGroup.new();
+~groupDX7 = ParGroup.new();
 ~organelleKeyVelocity = 100;
 
 
