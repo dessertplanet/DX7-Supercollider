@@ -114,7 +114,7 @@ f = { arg x, y ,z; //y value, z cc no
 	[117,~blackKeyY],
 	[122,~whiteKeyY]
 ];
-~bend = 0;
+~bend = 0.0;
 ~bendRange = 7; // range for pitch bend. +/- in semitones.
 
 ~keyNotes = [
@@ -298,8 +298,13 @@ m.sendMsg("/enablepatchsub", 1);
 		~nextBank = ~presetMeta[~nextPreset][1];
 		m.sendMsg("/oled/line/1", " " ++ ~presetMeta[~nextPreset][3].padRight(12) ++ ("#" ++ (~nextPreset.asInteger + 1)).asString.padLeft(6));
 		m.sendMsg("/oled/line/2", " bank " ++ ~nextBank.padRight(9));
-		m.sendMsg("/oled/line/3", " vel " ++ ~organelleKeyVelocity.asString.padLeft(3) ++ "  |  oct "
-			++ ~octaveTable[~currentOctave].asString.padLeft(2) ++ " ");
+		if(~auxPressed == false){
+			m.sendMsg("/oled/line/3", " vel " ++ ~organelleKeyVelocity.asString.padLeft(3) ++ "  |  oct "
+				++ ~octaveTable[~currentOctave].asString.padLeft(2) ++ " ");
+		}{
+			m.sendMsg("/oled/line/3", " bend" ++ ~bend.asStringPrec(1).padLeft(3) ++ "  | range"
+				++ ~bendRange.asString.padLeft(3) ++ " ");
+		};
 		if (~currentPreset == ~nextPreset){~graphics.(\Circle, /*x:*/ 3, /*y:*/ 13, /*radius:*/ 1);};
 	}
 };
@@ -346,14 +351,26 @@ OSCdef( \knobs,
 			~nextBank = ~presetMeta[~nextPreset][1];
 		});
 
-		if ((msg[3] != ~rawKnobs[2]) && (~rawKnobs[2] != nil), {
-			~organelleKeyVelocity = (msg[3] / 1023 * 126 + 1).asInteger;
-		});
+		if(~auxPressed == false){
 
-		if ((msg[4] != ~rawKnobs[3]) && (~rawKnobs[3] != nil), {
-			~currentOctave = (msg[4] / 1023 * 4).asInteger;
+			if ((msg[3] != ~rawKnobs[2]) && (~rawKnobs[2] != nil), {
+				~organelleKeyVelocity = (msg[3] / 1023 * 126 + 1).asInteger;
+			});
 
-		});
+			if ((msg[4] != ~rawKnobs[3]) && (~rawKnobs[3] != nil), {
+				~currentOctave = (msg[4] / 1023 * 4).asInteger;
+
+			});
+		}{
+			if ((msg[3] != ~rawKnobs[2]) && (~rawKnobs[2] != nil), {
+				~bend = msg[3] / 1023 * 2 - 1;
+				~bendExistingNotes.();
+			});
+
+			if ((msg[4] != ~rawKnobs[3]) && (~rawKnobs[3] != nil), {
+				~bendRange = (msg[4] / 1023 * 11 + 1).asInteger;
+			});
+		};
 
 
 		5.do {
@@ -392,12 +409,7 @@ OSCdef( \RoutePhysicalKeys,
 					~self.sendMsg("/note", msg[1] + 59, ~organelleKeyVelocity,src );
 				}
 			}{
-				if(~auxPressed){
-					//AUX + KEY UP
-
-				}{
-					~self.sendMsg("/note", msg[1] + 59, 0,src);
-				};
+				~self.sendMsg("/note", msg[1] + 59, 0,src);
 
 				if(~auxPlusKey){
 					~longPressKey.stop;
@@ -477,6 +489,8 @@ OSCdef( \aux,
 			m.sendMsg("/led", 4);
 		}{
 			~longPressAux.stop;
+			~bend = 0.0;
+			~bendExistingNotes.();
 
 			if((~longPressAuxState == false) && (~auxPlusKey == false)
 				&& (~auxPlusEnc == false)){
@@ -489,6 +503,7 @@ OSCdef( \aux,
 			~auxPlusKey = false;
 			m.sendMsg("/led", 0);
 		};
+		~refreshScreen.();
 	},
 	"/aux",
 	recvPort:57120
@@ -582,7 +597,14 @@ MIDIdef.bend(\pitchbend,
 
 		//bend is calculated to be high resolution pitch bend multiplier from -1.0 to 1.0, 0 at rest.
 
-		~noteArrayDX7.do({
+
+		~bendExistingNotes.();
+
+	}
+);
+
+~bendExistingNotes = {
+	~noteArrayDX7.do({
 			arg item, i;
 
 			if(item != nil){
@@ -591,8 +613,7 @@ MIDIdef.bend(\pitchbend,
 				item.set(\pitch, new);
 			}
 		})
-	}
-);
+};
 
 /////SYNTHDEFS
 
