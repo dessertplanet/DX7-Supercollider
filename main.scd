@@ -37,19 +37,19 @@ buffers and busses
 						~headno.free;
 					});
 					~betass = 1;
-					~headno = Synth.before(~scsynthDX7, \InfEfx, ~defjamHead0.());
+					~headno = Synth.before(~groupDX7, \InfEfx, ~defjamHead0.());
 				},
 				{
 					if(~betass == 0,   {
 						~betass = 1;
-						~headno = Synth.before(~scsynthDX7, \InfEfx, ~defjamHead0.())
+						~headno = Synth.before(~groupDX7, \InfEfx, ~defjamHead0.())
 					},
 					{
 						~headno.set(~defjamHead0.())
 					});
 				});
-				~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel),~scsynthDX7);
-				//~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel), ~scsynthDX7); //orjburayi addtotail diye degistirdin
+				~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel),~groupDX7);
+				//~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel), ~groupDX7); //orjburayi addtotail diye degistirdin
 
 			},
 			{
@@ -116,6 +116,7 @@ f = { arg x, y ,z; //y value, z cc no
 ];
 ~bend = 0.0;
 ~bendRange = 7; // range for pitch bend. +/- in semitones.
+~modWheel = nil;
 
 ~keyNotes = [
 	"C1",
@@ -268,6 +269,7 @@ f = { arg x, y ,z; //y value, z cc no
 		var k = (p.at((item*2)) ++ p.at((item*2) + 1)).asInteger;
 		f.value(~cirklonCCparse[item][0],~cirklonCCparse[item][1],k);
 	});
+	~modWheel = nil;
 	~currentPreset = g;
 	~updateMetadata.();
 };
@@ -615,6 +617,18 @@ MIDIdef.bend(\pitchbend,
 		})
 };
 
+MIDIdef.cc(\modDepth,
+	{
+		arg val;
+
+		~modWheel = (val / 127 * 99).asInteger;
+
+		~headno.set(\pitchCons, ~dx7_voice_pms_to_semitones[~vr[138]] * (~modWheel / 99));
+		~headno.set(\lfo_amd, ~dx7_voice_amd_to_ol_adjustment[~vr[136]] * (~modWheel / 99));
+	},
+	1 //MODWHEEL CC
+);
+
 /////SYNTHDEFS
 
 SynthDef(\InfEfx, {
@@ -628,8 +642,8 @@ SynthDef(\InfEfx, {
 	FreeSelf.kr(gate);
 	lfo = Osc.ar(lfo_wave,lfo_speed, lfo_phase, 0.5 * lfoGet2, 0.5 * lfoGet2) + LFNoise0.ar(lfo_speed, 0.5 * lfoGet1, 0.5 * lfoGet1);
 	lfo = lfo * EnvGen.ar(Env.asr(lfo_delay,releaseTime:0.01, curve: -5),envTrig);
-	multiPitch = LinLin.ar(lfo, 0, 1, (pitchCons.neg.midiratio * tameM) + tameC, pitchCons.midiratio);
-	lfoAmp = LinLin.ar(lfo, 0, 1, lfo_amd * (-3/4), 0);
+	multiPitch = LinLin.ar(lfo, 0, 1, (pitchCons.lag2.neg.midiratio * tameM) + tameC, pitchCons.lag2.midiratio);
+	lfoAmp = LinLin.ar(lfo, 0, 1, lfo_amd.lag2 * (-3/4), 0);
 
 	//Poll.ar(Impulse.ar(10), lfoAmp);
 	//PHASE PART++

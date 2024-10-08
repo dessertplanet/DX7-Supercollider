@@ -6,7 +6,7 @@
 		1, {(vrv - (((dummy - 72) / 13.5).exp * scaling_depth).asInteger)}, // -exp
 		2, {(vrv + (((dummy - 72) / 13.5).exp * scaling_depth).asInteger)}, // +exp
 		3, {(vrv + ((dummy / 45) * scaling_depth).asInteger)} // +lin
-        )
+	)
 };
 
 ~envCal = { arg // Area of hardcore envelope calculation function.
@@ -77,41 +77,55 @@
 
 ~defjamHead1 = {
 	var abc = [], algo, fdbIndNo = Array.fill(42, 1);
-			algo = (~vr[128]).clip(0,31);
-			abc = [\outMult, ~outOscVol[~vr[128]]];
-			//abc.postln;
-			fdbIndNo[~feedbackSel[algo]] =  ~feedbackIndex[(~vr[129])] * (~vr[129]);
-			42.do(
-				{
-					arg x;
-					abc = abc ++ [\dn ++ x, (~wf[algo,x] * fdbIndNo[x])];
-			});
-			abc;
+	algo = (~vr[128]).clip(0,31);
+	abc = [\outMult, ~outOscVol[~vr[128]]];
+	//abc.postln;
+	fdbIndNo[~feedbackSel[algo]] =  ~feedbackIndex[(~vr[129])] * (~vr[129]);
+	42.do(
+		{
+			arg x;
+			abc = abc ++ [\dn ++ x, (~wf[algo,x] * fdbIndNo[x])];
+	});
+	/*abc.pairsDo({
+	arg key, val;
+
+	postln(key ++ ": " ++ val);
+	});*/
+	abc;
 };
 
 ~defjamHead0 = {
-	var cba = [], lfoDepth, lfoGet1, lfoGet2;
-			if(~vr[133] == 5, {lfoGet1=1; lfoGet2 =0}, {lfoGet1 = 0; lfoGet2 =1 });
-			lfoDepth = (~dx7_voice_pms_to_semitones[~vr[138]]) * (~vr[135] / 99);
-			//lfoDepth.postln;
-			cba = [
-				\lfo_speed, ~dx7_voice_lfo_frequency[~vr[132]],
-				\lfo_wave, (~waveform_selector[~vr[133]]).bufnum, //random signal icinde yap,
-				\lfo_phase, ~phase_selector[~vr[133]],
-				\envTrig, 0,
-				\envTrig, 1,
-				\pitchCons, lfoDepth,
-				/* sifirdan baslasin because we need to reset the LFO phase */
-				\lfoGet1, lfoGet1,
-				\lfoGet2, lfoGet2,
-				\tameM, ~pitchTameMult[~vr[133]],
-				\tameC, ~pitchTameConst[~vr[133]],
-				\lfo_delay, ((~vr[134]).clip(0,99)).linlin(0,99,0.01,3.4),//lineer ramp ile carp
-				\lfo_amd, ~dx7_voice_amd_to_ol_adjustment[~vr[136]]
-			];
-			//cba.postln;
-			cba;
-			//a y.removeAt(1); ['a', 'b', 'c'].do({ arg item, i; [i, item].postln; });
+	var cba = [], lfoDepth, lfoGet1, lfoGet2, amd;
+	if(~vr[133] == 5, {lfoGet1=1; lfoGet2 =0}, {lfoGet1 = 0; lfoGet2 =1 });
+	if(~modWheel == nil){
+		lfoDepth = ~dx7_voice_pms_to_semitones[~vr[138]] * (~vr[135] / 99);
+		amd = ~dx7_voice_amd_to_ol_adjustment[~vr[136]];
+	}{
+		lfoDepth = ~dx7_voice_pms_to_semitones[~vr[138]] * (~modWheel / 99);
+		amd = ~dx7_voice_amd_to_ol_adjustment[~vr[136]] * (~modWheel / 99);
+	};
+	cba = [
+		\lfo_speed, ~dx7_voice_lfo_frequency[~vr[132]],
+		\lfo_wave, (~waveform_selector[~vr[133]]).bufnum, //random signal icinde yap,
+		\lfo_phase, ~phase_selector[~vr[133]],
+		\envTrig, 0,
+		\envTrig, 1,
+		\pitchCons, lfoDepth,
+		/* sifirdan baslasin (start from scratch) because we need to reset the LFO phase */
+		\lfoGet1, lfoGet1,
+		\lfoGet2, lfoGet2,
+		\tameM, ~pitchTameMult[~vr[133]],
+		\tameC, ~pitchTameConst[~vr[133]],
+		\lfo_delay, ((~vr[134]).clip(0,99)).linlin(0,99,0.01,3.4),//lineer ramp ile carp
+		\lfo_amd, amd
+	];
+	/*cba.pairsDo({
+	arg key, val;
+
+	postln(key ++ ": " ++ val);
+	});*/
+	cba;
+	//a y.removeAt(1); ['a', 'b', 'c'].do({ arg item, i; [i, item].postln; });
 };
 
 
@@ -148,12 +162,11 @@
 	var a , bil, ptchEnv,
 	envL  = Array2D.new(6,5),
 	envR  = Array2D.new(6,4),
-	//~selector = [66, 48, 54, 60, 66],
 	envC  = Array2D.new(6,4);
 	6.do { arg y;
 		4.do(
 			{
-				arg x;//~selector = [66, 48, 54, 60, 66],
+				arg x;
 				~dumm = ~envCal.value(
 					~vr[~selector[x] + y],//~vr1, //Level Current
 					~vr[~selector[x + 1] + y],//~vr2, //Level Next
@@ -229,9 +242,9 @@
 	a = bil ++ a ++ ptchEnv;
 	a = a ++ [\osc_sync, ((~vr[130] * (-1)) + 1)];
 	/*a.pairsDo({
-		arg key, val;
+	arg key, val;
 
-		if(key == \pitch) {postln(key ++ ": " ++ val);}
+	postln(key ++ ": " ++ val);
 	});*/
 	a;
 
