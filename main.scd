@@ -78,71 +78,16 @@ f = { arg x, y ,z; //y value, z cc no
 ~nextBankIndex = (~initialPreset / 512).floor + (~initialPreset % 512);
 ~nextSubIndex = ~initialPreset % 32;
 ~auxPressed = false;
+~longEncPressState = false;
 ~octaveTable = [-2,-1,0,1,2];
 ~currentOctave = 2;
 ~organelleTranspose = 0;
-~auxPlusKey = false;
-~auxPlusEnc = false;
 ~activeMessage = false;
-~whiteKeyY = 54;
-~blackKeyY = 47;
-~selectedKey = nil;
-~keyGraphicXY = [
-	[5,~whiteKeyY],
-	[10,~blackKeyY],
-	[14,~whiteKeyY],
-	[19,~blackKeyY],
-	[23,~whiteKeyY],
-	[32,~whiteKeyY],
-	[36,~blackKeyY],
-	[41,~whiteKeyY],
-	[45,~blackKeyY],
-	[50,~whiteKeyY],
-	[54,~blackKeyY],
-	[59,~whiteKeyY],
-	[68,~whiteKeyY],
-	[72,~blackKeyY],
-	[77,~whiteKeyY],
-	[81,~blackKeyY],
-	[86,~whiteKeyY],
-	[95,~whiteKeyY],
-	[99,~blackKeyY],
-	[104,~whiteKeyY],
-	[108,~blackKeyY],
-	[113,~whiteKeyY],
-	[117,~blackKeyY],
-	[122,~whiteKeyY]
-];
+
 ~bend = 0.0;
-~bendRange = 7; // range for pitch bend. +/- in semitones.
+~bendRange = 12; // range for pitch bend. +/- in semitones.
 ~modWheel = nil;
 
-~keyNotes = [
-	"C1",
-	"C#1",
-	"D1",
-	"D#1",
-	"E1",
-	"F1",
-	"F#1",
-	"G1",
-	"G#1",
-	"A1",
-	"A#1",
-	"B1",
-	"C2",
-	"C#2",
-	"D2",
-	"D#2",
-	"E2",
-	"F2",
-	"F#2",
-	"G2",
-	"G#2",
-	"A2",
-	"A#2",
-	"B2",
-];
 
 ~updateMetadata = {
 	~nextBank = ~presetMeta[~nextPreset][1];
@@ -150,38 +95,13 @@ f = { arg x, y ,z; //y value, z cc no
 	~nextSubIndex = ~nextPreset % 31;
 };
 
-
-~longPressAux = Routine.new({
-
-	"longpress aux routine".postln;
-
-});
-
-
-~longPressKey = Routine.new({
-
-	"longpress key routine".postln;
-
-});
-
-~shortPressKey = Routine.new({
-	"shortpress key routine".postln;
-});
-
-~randomPatch = Routine.new({
+~randomPatch = {
 	var new;
 	new = rrand(0,16383);
 	~nextPreset = new;
-	~nextBank = ~presetMeta[~nextPreset][1];
-
-	~messageBlast.("random preset");
-
-	~activeMessage = true;
-	wait(2);
 	~setPreset.(~nextPreset);
-	~activeMessage = false;
 	~refreshScreen.();
-});
+};
 
 ~setPreset = {
 	arg g;
@@ -197,21 +117,12 @@ f = { arg x, y ,z; //y value, z cc no
 	~updateMetadata.();
 };
 
-
-~messageBlast = {
-	arg val, showPreset = true;
-
-	m.sendMsg("/oled/line/1", " ");
-	m.sendMsg("/oled/line/2", val);
-	if(showPreset){
-		m.sendMsg("/oled/line/3", ~presetMeta[~nextPreset][3]);
-	}{
-		m.sendMsg("/oled/line/3", " ");
-	}
+~longEncPress = Routine {
+	~longEncPressState = false;
+	wait(1);
+	~longEncPressState = true;		
+	m.sendMsg("/gohome")
 };
-
-
-
 
 ///INTERFACE
 
@@ -219,18 +130,16 @@ f = { arg x, y ,z; //y value, z cc no
 m.sendMsg("/enablepatchsub", 1);
 
 ~refreshScreen = {
-	if(~activeMessage == false){
 		~nextBank = ~presetMeta[~nextPreset][1];
-		m.sendMsg("/oled/line/1", " " ++ ~presetMeta[~nextPreset][3].padRight(12) ++ ("#" ++ (~nextPreset.asInteger + 1)).asString.padLeft(6));
-		m.sendMsg("/oled/line/2", " bank " ++ ~nextBank.padRight(9));
+		m.sendMsg("/oled/line/1", ~presetMeta[~nextPreset][3].padRight(15) ++ ("#" ++ (~nextPreset.asInteger + 1)).asString.padLeft(6));
+		m.sendMsg("/oled/line/2", "bank " ++ ~nextBank.padRight(9));
 		if(~auxPressed == false){
-			m.sendMsg("/oled/line/3", " vel " ++ ~organelleKeyVelocity.asString.padLeft(3) ++ "  |  oct "
+			m.sendMsg("/oled/line/5", "vel " ++ ~organelleKeyVelocity.asString.padLeft(3) ++ "  |  oct "
 				++ ~octaveTable[~currentOctave].asString.padLeft(2) ++ " ");
 		}{
-			m.sendMsg("/oled/line/3", " bend" ++ ~bend.asStringPrec(1).padLeft(3) ++ "  | range"
+			m.sendMsg("/oled/line/5", "bend" ++ ~bend.asStringPrec(1).padLeft(3) ++ "  | range"
 				++ ~bendRange.asString.padLeft(3) ++ " ");
 		};
-	}
 };
 
 
@@ -297,25 +206,11 @@ OSCdef( \RoutePhysicalKeys,
 		}{
 
 			if (msg[2] > 0){
-				if(~auxPressed){
-					//AUX + KEY DOWN
-					if(~auxPlusKey == false){
-						~selectedKey = msg[1] - 1;
-						~auxPlusKey = true;
-					}
-				}{
-					~self.sendMsg("/note", msg[1] + 59, ~organelleKeyVelocity,src );
-				}
+					
+				~self.sendMsg("/note", msg[1] + 59, ~organelleKeyVelocity,src );
+				
 			}{
 				~self.sendMsg("/note", msg[1] + 59, 0,src);
-
-				if(~auxPlusKey){
-					if(~savedPresets[~selectedKey] != nil){
-						~setPreset.(~savedPresets[~selectedKey]);
-						~nextPreset = ~savedPresets[~selectedKey];
-						~refreshScreen.();
-					};
-				}
 			}
 		};
 	},
@@ -358,12 +253,19 @@ OSCdef( \encbut,
 		//press encoder to pop patch menu
 
 		if(msg[1]>0){
+			//enc button down
 			if(~auxPressed){
-				~auxPlusEnc = true;
-				~randomPatch.stop.reset.play;
+				~randomPatch.();
 			}{
-				m.sendMsg("/gohome");
+				~longEncPress.reset.play;
 			}
+		}{
+			//enc button up
+			~longEncPress.stop;
+			if(~longEncPressState == false){
+				~setPreset.(~nextPreset);
+			};
+			~longEncPressState = false;
 		}
 	},
 	"/encoder/button",
@@ -387,6 +289,7 @@ OSCdef( \aux,
 
 			m.sendMsg("/led", 0);
 		};
+
 		~refreshScreen.();
 	},
 	"/aux",
