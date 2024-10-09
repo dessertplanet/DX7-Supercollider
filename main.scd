@@ -127,7 +127,6 @@ f = { arg x, y ,z; //y value, z cc no
 ///INTERFACE
 
 ~rawKnobs = Array.newClear(6);
-m.sendMsg("/enablepatchsub", 1);
 
 ~refreshScreen = {
 		~nextBank = ~presetMeta[~nextPreset][1];
@@ -539,14 +538,14 @@ fork {
 			}
 		});
 
-		~refreshScreen.();
 	}{
 		~savedPresets = Array.newClear(24);
 	};
-};
 
-~graphics.(\Clear);
-~refreshScreen.();
+	m.sendMsg("/enablepatchsub", 1);
+	~graphics.(\Clear);
+	~refreshScreen.();	
+};
 
 
 OSCdef( \save,
