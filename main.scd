@@ -83,7 +83,6 @@ f = { arg x, y ,z; //y value, z cc no
 ~organelleTranspose = 0;
 ~auxPlusKey = false;
 ~auxPlusEnc = false;
-~longPressAuxState = false;
 ~activeMessage = false;
 ~whiteKeyY = 54;
 ~blackKeyY = 47;
@@ -154,66 +153,23 @@ f = { arg x, y ,z; //y value, z cc no
 
 ~longPressAux = Routine.new({
 
-	wait(1.2);
-
-	~setPreset.(~nextPreset);
-	~refreshScreen.();
-	~refreshKeyGraphic.();
-
-	~longPressAuxState = true;
+	"longpress aux routine".postln;
 
 });
 
 
 ~longPressKey = Routine.new({
 
-	var message;
-
-	wait(2);
-
-	if(~savedPresets[~selectedKey] == nil){
-		message = "saved preset ";
-		~savedPresets[~selectedKey] = ~nextPreset;
-	}{
-		if(~currentPreset == ~savedPresets[~selectedKey]){
-			message = "cleared preset ";
-			~savedPresets[~selectedKey] = nil;
-		}
-	};
-
-	~refreshKeyGraphic.();
-
-	~messageBlast.(message ++ ~keyNotes[~selectedKey]);
-
-	~activeMessage = true;
-	wait(2);
-	~activeMessage = false;
-
-	~refreshScreen.();
+	"longpress key routine".postln;
 
 });
 
 ~shortPressKey = Routine.new({
-	var msg, incl = true;
-
-	if(~savedPresets[~selectedKey] != nil){
-		msg = "load preset " ++ ~keyNotes[~selectedKey];
-	}{
-		msg = "nothing saved to " ++ ~keyNotes[~selectedKey];
-		incl = false;
-	};
-	~messageBlast.(msg, incl);
-
-	~activeMessage = true;
-	wait(1);
-
-	~activeMessage = false;
-	~refreshScreen.();
+	"shortpress key routine".postln;
 });
 
 ~randomPatch = Routine.new({
 	var new;
-	~longPressAux.stop;
 	new = rrand(0,16383);
 	~nextPreset = new;
 	~nextBank = ~presetMeta[~nextPreset][1];
@@ -225,40 +181,7 @@ f = { arg x, y ,z; //y value, z cc no
 	~setPreset.(~nextPreset);
 	~activeMessage = false;
 	~refreshScreen.();
-	~refreshKeyGraphic.();
 });
-
-
-
-////KEYBOARD VISUAL
-
-~drawKeyboard = {
-
-	14.do{
-		arg i;
-		~graphics.(\Circle, /*x:*/ 5 + (9*i), /*y:*/ 54, /*radius:*/ 3);
-	};
-
-	2.do{
-		arg i;
-		~graphics.(\Circle, /*x:*/ 10 + (9*i), /*y:*/ 47, /*radius:*/ 3);
-	};
-
-	3.do{
-		arg i;
-		~graphics.(\Circle, /*x:*/ 36 + (9*i), /*y:*/ 47, /*radius:*/ 3);
-	};
-
-	2.do{
-		arg i;
-		~graphics.(\Circle, /*x:*/ 72 + (9*i), /*y:*/ 47, /*radius:*/ 3);
-	};
-
-	3.do{
-		arg i;
-		~graphics.(\Circle, /*x:*/ 99 + (9*i), /*y:*/ 47, /*radius:*/ 3);
-	};
-};
 
 ~setPreset = {
 	arg g;
@@ -307,31 +230,6 @@ m.sendMsg("/enablepatchsub", 1);
 			m.sendMsg("/oled/line/3", " bend" ++ ~bend.asStringPrec(1).padLeft(3) ++ "  | range"
 				++ ~bendRange.asString.padLeft(3) ++ " ");
 		};
-		if (~currentPreset == ~nextPreset){~graphics.(\Circle, /*x:*/ 3, /*y:*/ 13, /*radius:*/ 1);};
-	}
-};
-
-
-
-
-~refreshKeyGraphic = {
-	~savedPresets.do{
-		arg item, i;
-
-		if(item == ~currentPreset){
-			~graphics.(\Circle, /*x:*/ ~keyGraphicXY[i][0], /*y:*/ ~keyGraphicXY[i][1], /*radius:*/ 1);
-			~graphics.(\Circle, /*x:*/ ~keyGraphicXY[i][0], /*y:*/ ~keyGraphicXY[i][1], /*radius:*/ 2);
-		}{
-			~graphics.(\Circle, /*x:*/ ~keyGraphicXY[i][0], /*y:*/ ~keyGraphicXY[i][1], /*radius:*/ 1, false);
-			~graphics.(\Circle, /*x:*/ ~keyGraphicXY[i][0], /*y:*/ ~keyGraphicXY[i][1], /*radius:*/ 2, false);
-		};
-
-		if (item != nil) {
-			~graphics.(\Circle, /*x:*/ ~keyGraphicXY[i][0], /*y:*/ ~keyGraphicXY[i][1], /*radius:*/ 1);
-
-		}{
-			~graphics.(\Circle, /*x:*/ ~keyGraphicXY[i][0], /*y:*/ ~keyGraphicXY[i][1], /*radius:*/ 1, false);
-		}
 	}
 };
 
@@ -402,9 +300,7 @@ OSCdef( \RoutePhysicalKeys,
 				if(~auxPressed){
 					//AUX + KEY DOWN
 					if(~auxPlusKey == false){
-						~longPressAux.stop;
 						~selectedKey = msg[1] - 1;
-						~longPressKey.reset.play;
 						~auxPlusKey = true;
 					}
 				}{
@@ -414,14 +310,11 @@ OSCdef( \RoutePhysicalKeys,
 				~self.sendMsg("/note", msg[1] + 59, 0,src);
 
 				if(~auxPlusKey){
-					~longPressKey.stop;
 					if(~savedPresets[~selectedKey] != nil){
 						~setPreset.(~savedPresets[~selectedKey]);
 						~nextPreset = ~savedPresets[~selectedKey];
 						~refreshScreen.();
-						~refreshKeyGraphic.();
 					};
-					~shortPressKey.reset.play;
 				}
 			}
 		};
@@ -467,7 +360,6 @@ OSCdef( \encbut,
 		if(msg[1]>0){
 			if(~auxPressed){
 				~auxPlusEnc = true;
-				~longPressAux.stop;
 				~randomPatch.stop.reset.play;
 			}{
 				m.sendMsg("/gohome");
@@ -486,23 +378,13 @@ OSCdef( \aux,
 
 		if(msg[1]>0){
 			~auxPressed = true;
-			~longPressAuxState = false;
-			~longPressAux.reset.play;
 			m.sendMsg("/led", 4);
 		}{
-			~longPressAux.stop;
 			~bend = 0.0;
 			~bendExistingNotes.();
 
-			if((~longPressAuxState == false) && (~auxPlusKey == false)
-				&& (~auxPlusEnc == false)){
-				~nextPreset = ~currentPreset;
-				~refreshScreen.();
-			};
-
 			~auxPressed = false;
-			~auxPlusEnc = false;
-			~auxPlusKey = false;
+
 			m.sendMsg("/led", 0);
 		};
 		~refreshScreen.();
@@ -755,7 +637,6 @@ fork {
 		});
 
 		~refreshScreen.();
-		~refreshKeyGraphic.();
 	}{
 		~savedPresets = Array.newClear(24);
 	};
