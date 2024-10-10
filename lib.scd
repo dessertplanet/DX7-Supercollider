@@ -105,7 +105,7 @@
 		amd = ~dx7_voice_amd_to_ol_adjustment[~vr[136]] * (~modWheel / 99);
 	};
 	cba = [
-		\lfo_speed, ~dx7_voice_lfo_frequency[~vr[132]],
+		\lfo_speed, ~lfoSpeed,
 		\lfo_wave, (~waveform_selector[~vr[133]]).bufnum, //random signal icinde yap,
 		\lfo_phase, ~phase_selector[~vr[133]],
 		\envTrig, 0,

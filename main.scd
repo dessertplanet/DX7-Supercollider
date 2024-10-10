@@ -83,6 +83,10 @@ f = { arg x, y ,z; //y value, z cc no
 ~currentOctave = 2;
 ~organelleTranspose = 0;
 ~activeMessage = false;
+~saveMenu = false;
+~confirmMenu = false;
+~modDepthDisplay = 0;
+~lfoSpeed = ~dx7_voice_lfo_frequency[~vr[132]];
 
 ~bend = 0.0;
 ~bendRange = 12; // range for pitch bend. +/- in semitones.
@@ -107,14 +111,17 @@ f = { arg x, y ,z; //y value, z cc no
 	arg g;
 	var p;
 	postln("set preset " ++ g);
+	~modWheel = nil;
 	p = ~presets[g][0];
 	145.do({arg item;
 		var k = (p.at((item*2)) ++ p.at((item*2) + 1)).asInteger;
 		f.value(~cirklonCCparse[item][0],~cirklonCCparse[item][1],k);
 	});
-	~modWheel = nil;
 	~currentPreset = g;
+	~modDepthDisplay = (~vr[135] / 99 * 100).asInteger;
+	~lfo_speed = ~dx7_voice_lfo_frequency[~vr[132]];
 	~updateMetadata.();
+	~refreshScreen.();
 };
 
 ~longEncPress = Routine {
@@ -133,11 +140,13 @@ f = { arg x, y ,z; //y value, z cc no
 		m.sendMsg("/oled/line/1", ~presetMeta[~nextPreset][3].padRight(15) ++ ("#" ++ (~nextPreset.asInteger + 1)).asString.padLeft(6));
 		m.sendMsg("/oled/line/2", "bank " ++ ~nextBank.padRight(9));
 		if(~auxPressed == false){
-			m.sendMsg("/oled/line/5", "vel " ++ ~organelleKeyVelocity.asString.padLeft(3) ++ "  |  oct "
-				++ ~octaveTable[~currentOctave].asString.padLeft(2) ++ " ");
+			m.sendMsg("/oled/line/3", "velocity " ++ ~organelleKeyVelocity);
+			m.sendMsg("/oled/line/4", "octave " ++ ~octaveTable[~currentOctave]);
+			m.sendMsg("/oled/line/5", "lfo depth " ++ ~modDepthDisplay ++ "%")
 		}{
-			m.sendMsg("/oled/line/5", "bend" ++ ~bend.asStringPrec(1).padLeft(3) ++ "  | range"
-				++ ~bendRange.asString.padLeft(3) ++ " ");
+			m.sendMsg("/oled/line/3", "bend " ++ (~bend * 100).asStringPrec(3) ++ "%");
+			m.sendMsg("/oled/line/4", "bend range " ++ ~bendRange);
+			m.sendMsg("/oled/line/5", "lfo speed " ++ ~lfoSpeed.asStringPrec(3) ++ " Hz")
 		};
 };
 
@@ -147,36 +156,43 @@ OSCdef( \knobs,
 	{
 		arg msg, time, addr, recvPort;
 
-		if ((msg[1] != ~rawKnobs[0]) && (~rawKnobs[0] != nil), {
-			~nextSubIndex = (msg[1] / 1023 * 31).asInteger;
-			~nextPreset = ~nextBankIndex * 32 + ~nextSubIndex;
-			~nextBank = ~presetMeta[~nextPreset][1];
-		});
+	
+		if (~rawKnobs[0] != nil){
+			if ((msg[1] - ~rawKnobs[0]).abs > 2){
+				~nextSubIndex = (msg[1] / 1023 * 31).asInteger;
+				~nextBankIndex = (msg[1] / 1023 * 511).asInteger;
 
-		if ((msg[2] != ~rawKnobs[1]) && (~rawKnobs[1] != nil), {
-			~nextBankIndex = (msg[2] / 1023 * 511).asInteger;
-			~nextPreset = ~nextBankIndex * 32 + ~nextSubIndex;
-			~nextBank = ~presetMeta[~nextPreset][1];
-		});
+				~nextPreset = ~nextBankIndex * 32 + ~nextSubIndex;
+				~nextBank = ~presetMeta[~nextPreset][1];
+			}
+		};
 
 		if(~auxPressed == false){
 
+			if ((msg[2] != ~rawKnobs[1]) && (~rawKnobs[1] != nil), {
+				~organelleKeyVelocity = (msg[2] / 1023 * 126 + 1).asInteger;
+			});
+
 			if ((msg[3] != ~rawKnobs[2]) && (~rawKnobs[2] != nil), {
-				~organelleKeyVelocity = (msg[3] / 1023 * 126 + 1).asInteger;
+				~currentOctave = (msg[3] / 1023 * 4).asInteger;
 			});
 
 			if ((msg[4] != ~rawKnobs[3]) && (~rawKnobs[3] != nil), {
-				~currentOctave = (msg[4] / 1023 * 4).asInteger;
-
+				~setModDepth.(msg[4] / 1023 * 127);
 			});
 		}{
-			if ((msg[3] != ~rawKnobs[2]) && (~rawKnobs[2] != nil), {
-				~bend = msg[3] / 1023 * 2 - 1;
+			if ((msg[2] != ~rawKnobs[1]) && (~rawKnobs[1] != nil), {
+				~bend = msg[2] / 1023 * 2 - 1;
 				~bendExistingNotes.();
 			});
 
+			if ((msg[3] != ~rawKnobs[2]) && (~rawKnobs[2] != nil), {
+				~bendRange = (msg[3] / 1023 * 11 + 1).asInteger;
+			});
+
 			if ((msg[4] != ~rawKnobs[3]) && (~rawKnobs[3] != nil), {
-				~bendRange = (msg[4] / 1023 * 11 + 1).asInteger;
+				//LFO SPEED
+				~setLfoSpeed.(msg[4].linexp(0.0,1023.0,0.05,50.0))
 			});
 		};
 
@@ -380,6 +396,9 @@ MIDIdef.bend(\pitchbend,
 		arg raw;
 
 		~bend = (raw - 8192).clip(-8191,8191) / 8191;
+		if(~auxPressed){
+			~refreshScreen.();
+		};
 
 		//bend is calculated to be high resolution pitch bend multiplier from -1.0 to 1.0, 0 at rest.
 
@@ -405,13 +424,32 @@ MIDIdef.cc(\modDepth,
 	{
 		arg val;
 
-		~modWheel = (val / 127 * 99).asInteger;
-
-		~headno.set(\pitchCons, ~dx7_voice_pms_to_semitones[~vr[138]] * (~modWheel / 99));
-		~headno.set(\lfo_amd, ~dx7_voice_amd_to_ol_adjustment[~vr[136]] * (~modWheel / 99));
+		~setModDepth.(val);
 	},
 	1 //MODWHEEL CC
 );
+
+~setModDepth = {
+	arg val;
+
+	~modWheel = (val / 127 * 99).asInteger;
+
+	~headno.set(\pitchCons, ~dx7_voice_pms_to_semitones[~vr[138]] * (~modWheel / 99));
+	~headno.set(\lfo_amd, ~dx7_voice_amd_to_ol_adjustment[~vr[136]] * (~modWheel / 99));
+
+	~modDepthDisplay = (val / 127 * 100).asInteger;
+	~refreshScreen.();
+};
+
+~setLfoSpeed = {
+	arg val;
+
+	~lfoSpeed = val;
+
+	~headno.set(\lfo_speed, ~lfoSpeed);
+
+	~refreshScreen.();
+};
 
 /////SYNTHDEFS
 
