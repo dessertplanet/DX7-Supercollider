@@ -87,6 +87,7 @@ f = { arg x, y ,z; //y value, z cc no
 ~confirmMenu = false;
 ~modDepthDisplay = 0;
 ~lfoSpeed = ~dx7_voice_lfo_frequency[~vr[132]];
+~selected = "* ";
 
 ~bend = 0.0;
 ~bendRange = 12; // range for pitch bend. +/- in semitones.
@@ -104,6 +105,11 @@ f = { arg x, y ,z; //y value, z cc no
 	new = rrand(0,16383);
 	~nextPreset = new;
 	~setPreset.(~nextPreset);
+	if(~nextPreset == ~currentPreset){
+		~selected = "* ";
+	}{
+		~selected = "";
+	};
 	~refreshScreen.();
 };
 
@@ -137,7 +143,7 @@ f = { arg x, y ,z; //y value, z cc no
 
 ~refreshScreen = {
 		~nextBank = ~presetMeta[~nextPreset][1];
-		m.sendMsg("/oled/line/1", ~presetMeta[~nextPreset][3].padRight(15) ++ ("#" ++ (~nextPreset.asInteger + 1)).asString.padLeft(6));
+		m.sendMsg("/oled/line/1",(~selected ++ ~presetMeta[~nextPreset][3]).padRight(15) ++ ("#" ++ (~nextPreset.asInteger + 1)).asString.padLeft(6));
 		m.sendMsg("/oled/line/2", "bank " ++ ~nextBank.padRight(9));
 		if(~auxPressed == false){
 			m.sendMsg("/oled/line/3", "velocity " ++ ~organelleKeyVelocity);
@@ -164,6 +170,12 @@ OSCdef( \knobs,
 
 				~nextPreset = ~nextBankIndex * 32 + ~nextSubIndex;
 				~nextBank = ~presetMeta[~nextPreset][1];
+
+				if(~nextPreset == ~currentPreset){
+					~selected = "* ";
+				}{
+					~selected = "";
+				}
 			}
 		};
 
@@ -256,6 +268,12 @@ OSCdef( \enc,
 
 		~nextBank = ~presetMeta[~nextPreset][1];
 
+		if(~nextPreset == ~currentPreset){
+			~selected = "* ";
+		}{
+			~selected = "";
+		};
+
 		~refreshScreen.();
 	},
 	"/encoder/turn",
@@ -279,6 +297,12 @@ OSCdef( \encbut,
 			~longEncPress.stop;
 			if(~longEncPressState == false){
 				~setPreset.(~nextPreset);
+				if(~nextPreset == ~currentPreset){
+					~selected = "* ";
+				}{
+					~selected = "";
+				};
+				~refreshScreen.();
 			};
 			~longEncPressState = false;
 		}
