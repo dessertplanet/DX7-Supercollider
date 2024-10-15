@@ -92,6 +92,60 @@ f = { arg x, y ,z; //y value, z cc no
 ~bendRange = 12; // range for pitch bend. +/- in semitones.
 ~modWheel = nil;
 
+~selectedLine = 1;
+~pageStart = 0;
+
+~textMenu = {
+    arg title, linesArray;
+
+    if(~pageStart==0){
+        m.sendMsg("/oled/line/1", title)
+    };
+
+    linesArray[~pageStart..(~pageStart+4)].do{
+        arg item, i;
+        if(i>0){
+            if(~pageStart>0){
+                if(i == ~selectedLine){
+                    m.sendMsg("/oled/line/"++(i+1).clip(1,5), "> " ++ linesArray[~pageStart+i])
+                }{
+                    m.sendMsg("/oled/line/"++(i+1).clip(1,5), "  " ++ linesArray[~pageStart+i])
+                }
+            }{
+                if(i == ~selectedLine){
+                    m.sendMsg("/oled/line/"++(i+1).clip(2,5), "> " ++ linesArray[~pageStart+i])
+                }{
+                    m.sendMsg("/oled/line/"++(i+1).clip(2,5), "  " ++ linesArray[~pageStart+i])
+                }
+            }
+        }
+    }
+};
+
+~incrementMenu = {
+    arg title, linesArray, delta;
+    var upLim = 4, lowLim=2;
+
+        if(~selectedLine>0){
+            lowLim = 1;
+        };
+
+        if(delta>0){
+            if(~selectedLine<upLim){
+                ~selectedLine = ~selectedLine + 1; 
+            }{
+                ~pageStart = (~pageStart + 1).clip(0,linesArray.size-5);
+            }
+        }{
+            if(~selectedLine>lowLim){
+                ~selectedLine = ~selectedLine - 1;
+            }{
+                ~pageStart = (~pageStart - 1).clip(lowLim,linesArray.size-5)
+            }
+        };
+
+        ~textMenu.(title, linesArray);
+};
 
 ~updateMetadata = {
 	~nextBank = ~presetMeta[~nextPreset][1];
@@ -643,6 +697,9 @@ fork {
 		});
 
 	}{
+		postln("no preset file found");
 		~savedPresets = Array.newClear(24);
 	};
+
+	~savedPresets.postln;
 };
