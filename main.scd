@@ -92,58 +92,50 @@ f = { arg x, y ,z; //y value, z cc no
 ~bendRange = 12; // range for pitch bend. +/- in semitones.
 ~modWheel = nil;
 
-~selectedLine = 1;
+~selectedLine = 0;
 ~pageStart = 0;
 
 ~textMenu = {
     arg title, linesArray;
 
-    if(~pageStart==0){
-        m.sendMsg("/oled/line/1", title)
-    };
+	m.sendMsg("/oled/line/1", title);
 
-    linesArray[~pageStart..(~pageStart+4)].do{
-        arg item, i;
-        if(i>0){
-            if(~pageStart>0){
-                if(i == ~selectedLine){
-                    m.sendMsg("/oled/line/"++(i+1).clip(1,5), "> " ++ linesArray[~pageStart+i])
-                }{
-                    m.sendMsg("/oled/line/"++(i+1).clip(1,5), "  " ++ linesArray[~pageStart+i])
-                }
-            }{
-                if(i == ~selectedLine){
-                    m.sendMsg("/oled/line/"++(i+1).clip(2,5), "> " ++ linesArray[~pageStart+i])
-                }{
-                    m.sendMsg("/oled/line/"++(i+1).clip(2,5), "  " ++ linesArray[~pageStart+i])
-                }
-            }
-        }
-    }
+    linesArray[~pageStart..(~pageStart+3)].do{
+		arg item, i;
+		
+			if(i == ~selectedLine){
+				m.sendMsg("/oled/line/"++(i+2), "> " ++ linesArray[~pageStart+i])
+			}{
+				m.sendMsg("/oled/line/"++(i+2), "  " ++ linesArray[~pageStart+i])
+			}
+		}
 };
 
 ~incrementMenu = {
     arg title, linesArray, delta;
-    var upLim = 4, lowLim=2;
-
-        if(~selectedLine>0){
-            lowLim = 1;
-        };
+    var upLim = 3, lowLim=0;
 
         if(delta>0){
             if(~selectedLine<upLim){
                 ~selectedLine = ~selectedLine + 1; 
             }{
-                ~pageStart = (~pageStart + 1).clip(0,linesArray.size-5);
+				if((~pageStart + ~selectedLine)<(linesArray.size-1)){
+                	~pageStart = (~pageStart + 1)
+				}
             }
         }{
             if(~selectedLine>lowLim){
                 ~selectedLine = ~selectedLine - 1;
             }{
-                ~pageStart = (~pageStart - 1).clip(lowLim,linesArray.size-5)
+				if(~pageStart>0){
+                	~pageStart = (~pageStart - 1)
+				}
             }
         };
 
+		// postln("page start " ++ ~pageStart);
+		// postln("selected line " ++ ~selectedLine);
+		
         ~textMenu.(title, linesArray);
 };
 
@@ -191,8 +183,10 @@ f = { arg x, y ,z; //y value, z cc no
 		if(~auxPressed == false){		
 			m.sendMsg("/gohome")
 		}{
+			//SHOWING THE SAVED MENU
+			~graphics.(\Clear);
 			~saveMenu = true;
-			//SHOW SAVE MENU
+			~textMenu.("SAVE MENU", ~savedPresets);
 		}
 	}{
 		//longencpress savemenu
@@ -342,6 +336,7 @@ OSCdef( \enc,
 			~refreshScreen.();
 		}{
 			//SAVE MENU ENCCCC
+			~incrementMenu.("SAVE MENU", ~savedPresets, msg[1])
 		}
 	},
 	"/encoder/turn",
@@ -355,11 +350,9 @@ OSCdef( \encbut,
 
 		if(msg[1]>0){
 			//enc button down
-			if(~saveMenu == false){
-					~longEncPress.reset.play;
-			}{
-				//Save menu enc but down
-			}
+			
+			~longEncPress.reset.play;
+			
 		}{
 			//enc button up
 			~longEncPress.stop;
@@ -378,6 +371,13 @@ OSCdef( \encbut,
 					}
 				}{
 					//SAVE MENU ENCBUT UP
+					~saveMenu = false;
+
+					postln("value " ++ ~savedPresets[~pageStart + ~selectedLine]);
+
+					~selectedLine = 1;
+					~pageStart = 0;
+					~refreshScreen.();
 				}
 			};
 			~longEncPressState = false;
@@ -405,7 +405,9 @@ OSCdef( \aux,
 			m.sendMsg("/led", 0);
 		};
 
-		~refreshScreen.();
+		if(~saveMenu == false){
+			~refreshScreen.();
+		}
 	},
 	"/aux",
 	recvPort:57120
