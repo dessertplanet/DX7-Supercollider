@@ -187,11 +187,16 @@ f = { arg x, y ,z; //y value, z cc no
 	~longEncPressState = false;
 	wait(1);
 	~longEncPressState = true;
-	if(~auxPressed == false){		
-		m.sendMsg("/gohome")
+	if(~saveMenu == false){
+		if(~auxPressed == false){		
+			m.sendMsg("/gohome")
+		}{
+			~saveMenu = true;
+			//SHOW SAVE MENU
+		}
 	}{
-		~saveMenu = true;
-		~refreshScreen.();
+		//longencpress savemenu
+		//Clear slot
 	}
 };
 
@@ -200,7 +205,6 @@ f = { arg x, y ,z; //y value, z cc no
 ~rawKnobs = Array.newClear(6);
 
 ~refreshScreen = {
-	if(~saveMenu == false){
 		~nextBank = ~presetMeta[~nextPreset][1];
 		m.sendMsg("/oled/line/1",(~selected ++ ~presetMeta[~nextPreset][3]).padRight(15) ++ ("#" ++ (~nextPreset.asInteger + 1)).asString.padLeft(6));
 		m.sendMsg("/oled/line/2", "bank " ++ ~nextBank.padRight(9));
@@ -213,11 +217,6 @@ f = { arg x, y ,z; //y value, z cc no
 			m.sendMsg("/oled/line/4", "bend range " ++ ~bendRange);
 			m.sendMsg("/oled/line/5", "lfo speed " ++ ~lfoSpeed.asStringPrec(3) ++ " Hz")
 		};
-	}{
-		~graphics.(\Clear);
-		m.sendMsg("/oled/line/1", "SAVE MENU");
-		m.sendMsg("/oled/line/2", "* >CLOSE");
-	}
 };
 
 
@@ -322,25 +321,25 @@ OSCdef( \enc,
 
 		if(~saveMenu == false){
 
-		if(msg[1]>0) {
-			if(~nextPreset<(16384-delta)){
-				~nextPreset = ~nextPreset + delta;
-			}{~nextPreset = 16383}
-		}{
-			if(~nextPreset>=delta){
-				~nextPreset = ~nextPreset - delta;
-			}{~nextPreset = 0}
-		};
+			if(msg[1]>0) {
+				if(~nextPreset<(16384-delta)){
+					~nextPreset = ~nextPreset + delta;
+				}{~nextPreset = 16383}
+			}{
+				if(~nextPreset>=delta){
+					~nextPreset = ~nextPreset - delta;
+				}{~nextPreset = 0}
+			};
 
-		~nextBank = ~presetMeta[~nextPreset][1];
+			~nextBank = ~presetMeta[~nextPreset][1];
 
-		if(~nextPreset == ~currentPreset){
-			~selected = "* ";
-		}{
-			~selected = "";
-		};
+			if(~nextPreset == ~currentPreset){
+				~selected = "* ";
+			}{
+				~selected = "";
+			};
 
-		~refreshScreen.();
+			~refreshScreen.();
 		}{
 			//SAVE MENU ENCCCC
 		}
@@ -359,23 +358,26 @@ OSCdef( \encbut,
 			if(~saveMenu == false){
 					~longEncPress.reset.play;
 			}{
-				~saveMenu = false;
-				~refreshScreen;
+				//Save menu enc but down
 			}
 		}{
 			//enc button up
 			~longEncPress.stop;
 			if(~longEncPressState == false){
-				if(~auxPressed == false){
-					~setPreset.(~nextPreset);
-					if(~nextPreset == ~currentPreset){
-						~selected = "* ";
+				if(~saveMenu == false){
+					if(~auxPressed == false){
+						~setPreset.(~nextPreset);
+						if(~nextPreset == ~currentPreset){
+							~selected = "* ";
+						}{
+							~selected = "";
+						};
+						~refreshScreen.();
 					}{
-						~selected = "";
-					};
-					~refreshScreen.();
+						~randomPatch.();
+					}
 				}{
-					~randomPatch.();
+					//SAVE MENU ENCBUT UP
 				}
 			};
 			~longEncPressState = false;
