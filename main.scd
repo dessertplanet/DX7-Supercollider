@@ -111,7 +111,7 @@ f = { arg x, y ,z; //y value, z cc no
 		arg item, i;
 		var thisPreset, thisPresetMeta;
 		thisPreset = linesArray[~pageStart+i];
-		thisPresetMeta = ("#" ++ (thisPreset.asInteger + 1)) ++ " " ++ ~presetMeta[thisPreset][3];
+		thisPresetMeta = ("#" ++ thisPreset) ++ " " ++ ~presetMeta[thisPreset][3];
 		if(i == ~selectedLine){
 			m.sendMsg("/oled/line/"++(i+2), "> " ++ thisPresetMeta)
 		}{
@@ -268,7 +268,7 @@ f = { arg x, y ,z; //y value, z cc no
 
 ~refreshScreen = {
 		~nextBank = ~presetMeta[~nextPreset][1];
-		m.sendMsg("/oled/line/1",(~selected ++ ~presetMeta[~nextPreset][3]).padRight(15) ++ ("#" ++ (~nextPreset.asInteger + 1)).asString.padLeft(6));
+		m.sendMsg("/oled/line/1",(~selected ++ ~presetMeta[~nextPreset][3]).padRight(15) ++ ("#" ++ ~nextPreset).asString.padLeft(6));
 		m.sendMsg("/oled/line/2", "bank " ++ ~nextBank.padRight(9));
 		if(~auxPressed == false){
 			m.sendMsg("/oled/line/3", "velocity " ++ ~organelleKeyVelocity);
