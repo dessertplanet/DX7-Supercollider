@@ -223,7 +223,7 @@ f = { arg x, y ,z; //y value, z cc no
 
 ~longEncPress = Routine {
 	~longEncPressState = false;
-	wait(1);
+	wait(2);
 	~longEncPressState = true;
 	if(~saveMenu == false){
 		if(~auxPressed == false){		
@@ -248,6 +248,7 @@ f = { arg x, y ,z; //y value, z cc no
 		//SAVE THE CURRENT PRESET
 		postln("saving preset " ++ ~currentPreset);
 		~savedPresets = ~savedPresets.add(~currentPreset);
+		~nextPreset = ~currentPreset;
 		~refreshScreen.();
 		~saveToFile.();
 	}
