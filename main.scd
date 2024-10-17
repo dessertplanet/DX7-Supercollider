@@ -87,6 +87,9 @@ f = { arg x, y ,z; //y value, z cc no
 ~modDepthDisplay = 0;
 ~lfoSpeed = ~dx7_voice_lfo_frequency[~vr[132]];
 ~selected = "* ";
+~saveMenuTitle = "LOAD/SAVE";
+~newSaveSym = 'NEW SAVE';
+~cancelSym = 'CANCEL';
 
 ~bend = 0.0;
 ~bendRange = 12; // range for pitch bend. +/- in semitones.
@@ -94,32 +97,51 @@ f = { arg x, y ,z; //y value, z cc no
 
 ~selectedLine = 0;
 ~pageStart = 0;
+~linesDisplayed= [];
 
 ~textMenu = {
-    arg title, linesArray;
+    arg title, linesArray ...extras;
+	var firstEmpty;
+
+	firstEmpty = linesArray.size-~pageStart-1;
 
 	m.sendMsg("/oled/line/1", title);
 
     linesArray[~pageStart..(~pageStart+3)].do{
 		arg item, i;
-		
-			if(i == ~selectedLine){
-				m.sendMsg("/oled/line/"++(i+2), "> " ++ linesArray[~pageStart+i])
+		if(i == ~selectedLine){
+			m.sendMsg("/oled/line/"++(i+2), "> " ++ linesArray[~pageStart+i])
+		}{
+			m.sendMsg("/oled/line/"++(i+2), "  " ++ linesArray[~pageStart+i])
+		};
+	};
+
+	extras.do{
+		arg item, i;
+		if(firstEmpty<3){
+			if((firstEmpty+i+1) == ~selectedLine){
+				m.sendMsg("/oled/line/"++(linesArray.size-~pageStart+2+i), "> " ++ item)
 			}{
-				m.sendMsg("/oled/line/"++(i+2), "  " ++ linesArray[~pageStart+i])
-			}
+				m.sendMsg("/oled/line/"++(linesArray.size-~pageStart+2+i), "  " ++ item)
+			};
 		}
+	};
+	~linesDisplayed = (linesArray[~pageStart..(~pageStart+3)] ++ extras)[0..3];
 };
 
 ~incrementMenu = {
-    arg title, linesArray, delta;
-    var upLim = 3, lowLim=0;
+    arg title, linesArray, delta ...extras;
+    var upLim, lowLim=0, firstEmpty;
+
+	firstEmpty = linesArray.size-~pageStart-1;
+
+	upLim = min(3, (linesArray.size + extras.size - 1));
 
         if(delta>0){
             if(~selectedLine<upLim){
                 ~selectedLine = ~selectedLine + 1; 
             }{
-				if((~pageStart + ~selectedLine)<(linesArray.size-1)){
+				if((~pageStart + ~selectedLine)<(linesArray.size + extras.size - 1)){
                 	~pageStart = (~pageStart + 1)
 				}
             }
@@ -133,10 +155,25 @@ f = { arg x, y ,z; //y value, z cc no
             }
         };
 
+		extras.do{
+			arg item, i;
+			var line;
+			line = linesArray.size-~pageStart+2+i;
+			if((firstEmpty<3) && (line < 6)){
+				if((firstEmpty+i+1) == ~selectedLine){
+					m.sendMsg("/oled/line/"++line, "> " ++ item)
+				}{
+					m.sendMsg("/oled/line/"++line, "  " ++ item)
+				};
+			}
+		};	
+
 		// postln("page start " ++ ~pageStart);
 		// postln("selected line " ++ ~selectedLine);
 		
-        ~textMenu.(title, linesArray);
+		~linesDisplayed = (linesArray[~pageStart..(~pageStart+3)] ++ extras)[0..3];
+		
+        ~textMenu.(title, linesArray, *extras);
 };
 
 ~updateMetadata = {
@@ -186,7 +223,7 @@ f = { arg x, y ,z; //y value, z cc no
 			//SHOWING THE SAVED MENU
 			~graphics.(\Clear);
 			~saveMenu = true;
-			~textMenu.("SAVE MENU", ~savedPresets);
+			~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym);
 		}
 	}{
 		//longencpress savemenu
@@ -336,7 +373,7 @@ OSCdef( \enc,
 			~refreshScreen.();
 		}{
 			//SAVE MENU ENCCCC
-			~incrementMenu.("SAVE MENU", ~savedPresets, msg[1])
+			~incrementMenu.(~saveMenuTitle, ~savedPresets, msg[1], ~newSaveSym, ~cancelSym)
 		}
 	},
 	"/encoder/turn",
@@ -373,7 +410,7 @@ OSCdef( \encbut,
 					//SAVE MENU ENCBUT UP
 					~saveMenu = false;
 
-					postln("value " ++ ~savedPresets[~pageStart + ~selectedLine]);
+					postln("value " ++ ~linesDisplayed[~selectedLine]);
 
 					~selectedLine = 1;
 					~pageStart = 0;
@@ -702,7 +739,7 @@ fork {
 
 	}{
 		postln("no preset file found");
-		~savedPresets = Array.newClear(24);
+		~savedPresets = [\empty];
 	};
 
 	~savedPresets.postln;
