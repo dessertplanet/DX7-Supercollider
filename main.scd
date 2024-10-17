@@ -118,11 +118,12 @@ f = { arg x, y ,z; //y value, z cc no
 
 	extras.do{
 		arg item, i;
-		if(firstEmpty<3){
+		var line = linesArray.size-~pageStart+2+i;
+		if((firstEmpty<3)&&(line<6)){
 			if((firstEmpty+i+1) == ~selectedLine){
-				m.sendMsg("/oled/line/"++(linesArray.size-~pageStart+2+i), "> " ++ item)
+				m.sendMsg("/oled/line/"++line, "> " ++ item)
 			}{
-				m.sendMsg("/oled/line/"++(linesArray.size-~pageStart+2+i), "  " ++ item)
+				m.sendMsg("/oled/line/"++line, "  " ++ item)
 			};
 		}
 	};
@@ -209,6 +210,11 @@ f = { arg x, y ,z; //y value, z cc no
 	~modDepthDisplay = (~vr[135] / 99 * 100).asInteger;
 	~lfo_speed = ~dx7_voice_lfo_frequency[~vr[132]];
 	~updateMetadata.();
+	if(~nextPreset == ~currentPreset){
+		~selected = "* ";
+	}{
+		~selected = "";
+	};
 	~refreshScreen.();
 };
 
@@ -229,6 +235,28 @@ f = { arg x, y ,z; //y value, z cc no
 		//longencpress savemenu
 		//Clear slot
 	}
+};
+
+~menuSelect = {
+	arg item;
+
+	switch(item)
+	{'NEW SAVE'}{
+		//SAVE THE CURRENT PRESET
+		postln("saving preset " ++ ~currentPreset);
+		~savedPresets = ~savedPresets.add(~currentPreset);
+		~refreshScreen.();
+		~saveToFile.();
+	}
+	{'CANCEL'}{~refreshScreen.()}
+	{'YES'}{}
+	{'NO'}{}
+	{//DEFAULT CASE IS A PRESET ID
+		~nextPreset = item;
+		~setPreset.(item);
+	};
+	~selectedLine = 0;
+	~pageStart = 0;
 };
 
 ///INTERFACE
@@ -397,12 +425,6 @@ OSCdef( \encbut,
 				if(~saveMenu == false){
 					if(~auxPressed == false){
 						~setPreset.(~nextPreset);
-						if(~nextPreset == ~currentPreset){
-							~selected = "* ";
-						}{
-							~selected = "";
-						};
-						~refreshScreen.();
 					}{
 						~randomPatch.();
 					}
@@ -410,11 +432,7 @@ OSCdef( \encbut,
 					//SAVE MENU ENCBUT UP
 					~saveMenu = false;
 
-					postln("value " ++ ~linesDisplayed[~selectedLine]);
-
-					~selectedLine = 1;
-					~pageStart = 0;
-					~refreshScreen.();
+					~menuSelect.(~linesDisplayed[~selectedLine]);
 				}
 			};
 			~longEncPressState = false;
@@ -706,6 +724,10 @@ fork {
 
 	m.sendMsg("/enablepatchsub", 1);
 	~loadFromFile.();
+	if(~savedPresets[~savedPresets.size-1]!=nil){
+		~nextPreset = ~savedPresets[~savedPresets.size-1];
+		~setPreset.(~savedPresets[~savedPresets.size-1])
+	};
 	~graphics.(\Clear);
 	~refreshScreen.();	
 };
@@ -720,6 +742,7 @@ fork {
 			state = state ++ item ++ "\n"
 		});
 
+		postln("writing save file: " ++ state);
 		presetFile.write(state);
 		presetFile.close;
 };
@@ -739,7 +762,7 @@ fork {
 
 	}{
 		postln("no preset file found");
-		~savedPresets = [\empty];
+		~savedPresets = [];
 	};
 
 	~savedPresets.postln;
