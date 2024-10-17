@@ -88,7 +88,7 @@ f = { arg x, y ,z; //y value, z cc no
 ~lfoSpeed = ~dx7_voice_lfo_frequency[~vr[132]];
 ~selected = "* ";
 ~saveMenuTitle = "LOAD/SAVE";
-~newSaveSym = 'NEW SAVE';
+~newSaveSym = 'SAVE CURRENT';
 ~cancelSym = 'CANCEL';
 
 ~bend = 0.0;
@@ -109,10 +109,13 @@ f = { arg x, y ,z; //y value, z cc no
 
     linesArray[~pageStart..(~pageStart+3)].do{
 		arg item, i;
+		var thisPreset, thisPresetMeta;
+		thisPreset = linesArray[~pageStart+i];
+		thisPresetMeta = ("#" ++ (thisPreset.asInteger + 1)) ++ " " ++ ~presetMeta[thisPreset][3];
 		if(i == ~selectedLine){
-			m.sendMsg("/oled/line/"++(i+2), "> " ++ linesArray[~pageStart+i])
+			m.sendMsg("/oled/line/"++(i+2), "> " ++ thisPresetMeta)
 		}{
-			m.sendMsg("/oled/line/"++(i+2), "  " ++ linesArray[~pageStart+i])
+			m.sendMsg("/oled/line/"++(i+2), "  " ++ thisPresetMeta)
 		};
 	};
 
@@ -241,7 +244,7 @@ f = { arg x, y ,z; //y value, z cc no
 	arg item;
 
 	switch(item)
-	{'NEW SAVE'}{
+	{'SAVE CURRENT'}{
 		//SAVE THE CURRENT PRESET
 		postln("saving preset " ++ ~currentPreset);
 		~savedPresets = ~savedPresets.add(~currentPreset);
@@ -742,7 +745,7 @@ fork {
 			state = state ++ item ++ "\n"
 		});
 
-		postln("writing save file: " ++ state);
+		postln("writing save file: " ++ ~savedPresets);
 		presetFile.write(state);
 		presetFile.close;
 };
