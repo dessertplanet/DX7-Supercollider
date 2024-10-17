@@ -70,7 +70,7 @@ f = { arg x, y ,z; //y value, z cc no
 ~sustain = false;
 ~sustainedNotes = Set.new(128);
 ~keysDown = Set.new(128);
-~initialPreset= 0;
+~initialPreset= 1;
 ~currentPreset = ~initialPreset;
 ~nextPreset = ~initialPreset;
 ~nextBank = ~presetMeta[~initialPreset][1];
@@ -184,6 +184,7 @@ f = { arg x, y ,z; //y value, z cc no
 	~nextBank = ~presetMeta[~nextPreset][1];
 	~nextBankIndex = (~nextPreset / 511).floor + (~nextPreset % 511);
 	~nextSubIndex = ~nextPreset % 31;
+	~modDepthDisplay = (~vr[135] / 99 * 100).asInteger;
 };
 
 ~randomPatch = {
@@ -210,7 +211,6 @@ f = { arg x, y ,z; //y value, z cc no
 		f.value(~cirklonCCparse[item][0],~cirklonCCparse[item][1],k);
 	});
 	~currentPreset = g;
-	~modDepthDisplay = (~vr[135] / 99 * 100).asInteger;
 	~lfo_speed = ~dx7_voice_lfo_frequency[~vr[132]];
 	~updateMetadata.();
 	if(~nextPreset == ~currentPreset){
