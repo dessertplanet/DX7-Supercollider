@@ -799,6 +799,11 @@ fork {
 		~savedPresets = FileReader.read(~presetPath);
 		if(~savedPresets==nil){
 			~savedPresets = [];
+		}{
+			~savedPresets.do{
+				arg item, i;
+					~savedPresets[i] = item[0].asInteger;
+			}
 		}
 	}{
 		postln("no preset file found");
