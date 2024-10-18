@@ -1,3 +1,7 @@
+//DX7-Supercollider as a patch for the Organelle M
+//This patch implements every? DX7 preset known to humanity with an easy interface on Organelle
+//Save your favorites, jump to random presets, sequence/control via MIDI
+
 //Load file with painstakingly measured envelopes and conversions from Ege Gonul
 "/tmp/patch/magic.scd".load;
 

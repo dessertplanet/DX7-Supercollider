@@ -1,3 +1,5 @@
+//Functions galore- see main for where they are called
+
 //When focus has changed, update context to reflect our new position
 ~updateMetadata = {
 	~nextBank = ~presetMeta[~nextPreset][1];
