@@ -2,8 +2,6 @@
 
 //~scsynthDX7 = s.defaultGroup;
 ~groupDX7 = ParGroup.new();
-~organelleKeyVelocity = 100;
-
 
 ~lfoSqr = Buffer.alloc(s, 512, 1);
 ~lfoSawDown = Buffer.alloc(s, 512, 1);

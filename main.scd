@@ -1,5 +1,5 @@
-//Load file to declare variables
-"/tmp/patch/init.scd".load;
+//Load file with painstakingly measured envelopes and conversions from Ege Gonul
+"/tmp/patch/magic.scd".load;
 
 //Load file with additional functions
 "/tmp/patch/lib.scd".load;
@@ -17,6 +17,38 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 ~presets = FileReader.read("/tmp/patch/DX7.afx");
 
 ~presetPath = "/tmp/patch/dx7_state";
+
+~organelleKeyVelocity = 100;
+~sustain = false;
+~sustainedNotes = Set.new(128);
+~keysDown = Set.new(128);
+~initialPreset= 1;
+~currentPreset = ~initialPreset;
+~nextPreset = ~initialPreset;
+~nextBank = ~presetMeta[~initialPreset][1];
+~nextBankIndex = (~initialPreset / 512).floor + (~initialPreset % 512);
+~nextSubIndex = ~initialPreset % 32;
+~auxPressed = false;
+~longEncPressState = false;
+~octaveTable = [-2,-1,0,1,2];
+~currentOctave = 2;
+~organelleTranspose = 0;
+~activeMessage = false;
+~currentScreen = \main;
+~modDepthDisplay = 0;
+~lfoSpeed = ~dx7_voice_lfo_frequency[~vr[132]];
+~selected = "* ";
+~saveMenuTitle = "LOAD/SAVE";
+~newSaveSym = 'SAVE CURRENT';
+~cancelSym = 'CANCEL';
+~toDelete = nil;
+~bend = 0.0;
+~bendRange = 12; // range for pitch bend. +/- in semitones.
+~modWheel = nil;
+
+~selectedLine = 0;
+~pageStart = 0;
+~linesDisplayed= [];
 
 
 ///MAIN FUNCTIONS
@@ -64,37 +96,7 @@ f = { arg x, y ,z; //y value, z cc no
 	)
 };
 
-~sustain = false;
-~sustainedNotes = Set.new(128);
-~keysDown = Set.new(128);
-~initialPreset= 1;
-~currentPreset = ~initialPreset;
-~nextPreset = ~initialPreset;
-~nextBank = ~presetMeta[~initialPreset][1];
-~nextBankIndex = (~initialPreset / 512).floor + (~initialPreset % 512);
-~nextSubIndex = ~initialPreset % 32;
-~auxPressed = false;
-~longEncPressState = false;
-~octaveTable = [-2,-1,0,1,2];
-~currentOctave = 2;
-~organelleTranspose = 0;
-~activeMessage = false;
-~currentScreen = \main;
-~modDepthDisplay = 0;
-~lfoSpeed = ~dx7_voice_lfo_frequency[~vr[132]];
-~selected = "* ";
-~saveMenuTitle = "LOAD/SAVE";
-~newSaveSym = 'SAVE CURRENT';
-~cancelSym = 'CANCEL';
-~toDelete = nil;
 
-~bend = 0.0;
-~bendRange = 12; // range for pitch bend. +/- in semitones.
-~modWheel = nil;
-
-~selectedLine = 0;
-~pageStart = 0;
-~linesDisplayed= [];
 
 ~textMenu = {
     arg title, linesArray ...extras;
