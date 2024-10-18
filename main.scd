@@ -7,54 +7,55 @@
 //Load file with SynthDefs for making sounds (These also from Ege)
 "/tmp/patch/sound.scd".load;
 
-//Load file with OSCDefs and MIDIDefs that govern the interface between Organelle/MIDI and SC
-"/tmp/patch/interface.scd".load;
-
+//Show a reasonabl loading screen while we crunch on big files.
 ~graphics.(\Clear);
 
 m.sendMsg("/oled/line/1", "DX7-Supercollider:");
 m.sendMsg("/oled/line/2","loading 16384 presets");
 
+//INITIAL SETUP
+
 ~presetMeta = CSVFileReader.read("/tmp/patch/DX7-presets2.csv",true);
 
 ~presets = FileReader.read("/tmp/patch/DX7.afx");
 
-~presetPath = "/tmp/patch/dx7_state";
 
-~rawKnobs = Array.newClear(6);
-~organelleKeyVelocity = 100;
-~sustain = false;
-~sustainedNotes = Set.new(128);
-~keysDown = Set.new(128);
-~initialPreset= 1;
-~currentPreset = ~initialPreset;
-~nextPreset = ~initialPreset;
-~nextBank = ~presetMeta[~initialPreset][1];
-~nextBankIndex = (~initialPreset / 512).floor + (~initialPreset % 512);
-~nextSubIndex = ~initialPreset % 32;
-~auxPressed = false;
-~longEncPressState = false;
-~octaveTable = [-2,-1,0,1,2];
-~currentOctave = 2;
-~organelleTranspose = 0;
-~activeMessage = false;
-~currentScreen = \main;
-~modDepthDisplay = 0;
-~lfoSpeed = ~dx7_voice_lfo_frequency[~vr[132]];
-~selected = "* ";
-~saveMenuTitle = "LOAD/SAVE";
-~newSaveSym = 'SAVE CURRENT';
-~cancelSym = 'CANCEL';
-~toDelete = nil;
-~bend = 0.0;
+//Declare global variables
+
+~presetPath = "/tmp/patch/dx7_state"; //path to file used to save presets that the user likes
+~rawKnobs = Array.newClear(6); //array for raw knob values
+~organelleKeyVelocity = 100; //variable to set the velocity used when user plays a note on the organelle accordion keys
+~sustain = false; //state of the sustain pedal for synth consumption. Either via MIDI or the PEDAL input on Organelle
+~sustainedNotes = Set.new(128); //Keep a set of notes to sustain
+~keysDown = Set.new(128); //Keep track of which keys are down. When the sustain pedal is lifted, these notes don't stop
+~initialPreset= 1; //Startup preset- much waffling went into chooseing this one :)
+~currentPreset = ~initialPreset; //variable for currently RUNNING preset
+~nextPreset = ~initialPreset; //variable for currently SHOWN preset
+~nextBank = ~presetMeta[~initialPreset][1]; //variable for bank metadata about currently SHOWN preset
+~nextBankIndex = (~initialPreset / 512).floor + (~initialPreset % 512); // used in math for providing coarse preset knob
+~nextSubIndex = ~initialPreset % 32; // used in math for providing coarse preset knob
+~auxPressed = false; //state of aux button on Organelle
+~longEncPressState = false; //state of longpress action for Organelle encoder button
+~octaveTable = [-2,-1,0,1,2]; //table of available octaves for organelle accordion keys
+~currentOctave = 2; // INDEX selected from ~octaveTable.
+~organelleTranspose = 0; //Transpose in semitones
+~currentScreen = \main; // variable to keep track of what is on the screen- used for governing controls
+~modDepthDisplay = 0; //mod depth to display in a friendly manner
+~lfoSpeed = ~dx7_voice_lfo_frequency[~vr[132]]; //master LFO frequency in Hz
+~selected = "* "; //string used to indicate whether the currently SHOWN preset is also RUNNING, in the main screen
+~saveMenuTitle = "LOAD/SAVE"; //Title string for save menu
+~newSaveSym = 'SAVE CURRENT'; //symbols for use in text menu
+~cancelSym = 'CANCEL'; // " "
+~toDelete = nil; //keep track of saved preset to be deleted
+~bend = 0.0; // pitchbend value for synth consumption. input from organelle parameter or MIDI
 ~bendRange = 12; // range for pitch bend. +/- in semitones.
-~modWheel = nil;
+~modWheel = nil; // Modwheel param - input from MIDI or Organelle lfo depth parameter
+~selectedLine = 0; // selected line index in text menus
+~pageStart = 0; // paging index for text menus
+~linesDisplayed= []; //array of strings for text menus
 
-~selectedLine = 0;
-~pageStart = 0;
-~linesDisplayed= [];
-
-//set things up
+//Use a routine to set things up, waiting 0.1 seconds before doing the other steps in order to avoid issues with 
+//supercollider starting up.
 
 fork {
 	wait(0.1);
@@ -72,8 +73,9 @@ fork {
 	~refreshScreen.();	
 };
 
+//FUNCTIONS
 
-//define functions- these are mostly called by OSCdefs and MIDIdefs in interface.scd
+//Only two functions in main, the rest are in lib.scd- these two are core to how wthis all works. The first manages synth voices, the second unpacks preset values.
 
 ~noteParser = { arg note, vel;
 	1.do { arg yxx;
@@ -119,295 +121,317 @@ f = { arg x, y ,z; //y value, z cc no
 	)
 };
 
-//Reload the main UI
-~refreshScreen = {
-		~nextBank = ~presetMeta[~nextPreset][1];
-		m.sendMsg("/oled/line/1",(~selected ++ ~presetMeta[~nextPreset][3]).padRight(15) ++ ("#" ++ ~nextPreset).asString.padLeft(6));
-		m.sendMsg("/oled/line/2", "bank " ++ ~nextBank.padRight(9));
-		if(~auxPressed == false){
-			m.sendMsg("/oled/line/3", "velocity " ++ ~organelleKeyVelocity);
-			m.sendMsg("/oled/line/4", "octave " ++ ~octaveTable[~currentOctave]);
-			m.sendMsg("/oled/line/5", "lfo depth " ++ ~modDepthDisplay ++ "%")
-		}{
-			m.sendMsg("/oled/line/3", "bend " ++ (~bend * 100).asStringPrec(3) ++ "%");
-			m.sendMsg("/oled/line/4", "bend range " ++ ~bendRange);
-			m.sendMsg("/oled/line/5", "lfo speed " ++ ~lfoSpeed.asStringPrec(3) ++ " Hz")
-		};
-};
+//DEFS
+//The rest of main is a set of OSC and MIDI defs that are called when they receive input either from Organelle hardware or 
+//via MIDI
 
-//When focus has changed, update context to reflect our new position
-~updateMetadata = {
-	~nextBank = ~presetMeta[~nextPreset][1];
-	~nextBankIndex = (~nextPreset / 511).floor + (~nextPreset % 511);
-	~nextSubIndex = ~nextPreset % 31;
-	~modDepthDisplay = (~vr[135] / 99 * 100).asInteger;
-};
+//Organelle knob input
+OSCdef( \knobs,
+	{
+		arg msg, time, addr, recvPort;
 
-//Given a preset index, load that preset
-~setPreset = {
-	arg g;
-	var p;
-	postln("set preset " ++ g);
-	~modWheel = nil;
-	p = ~presets[g][0];
-	145.do({arg item;
-		var k = (p.at((item*2)) ++ p.at((item*2) + 1)).asInteger;
-		f.value(~cirklonCCparse[item][0],~cirklonCCparse[item][1],k);
-	});
-	~currentPreset = g;
-	~lfo_speed = ~dx7_voice_lfo_frequency[~vr[132]];
-	~updateMetadata.();
-	if(~nextPreset == ~currentPreset){
-		~selected = "* ";
-	}{
-		~selected = "";
-	};
-	~refreshScreen.();
-};
+	
+		if (~rawKnobs[0] != nil){
+			if ((msg[1] - ~rawKnobs[0]).abs > 2){
+				~nextSubIndex = (msg[1] / 1023 * 31).asInteger;
+				~nextBankIndex = (msg[1] / 1023 * 511).asInteger;
 
-//Load a random patch!
-~randomPatch = {
-	var new;
-	new = rrand(0,16383);
-	~nextPreset = new;
-	~setPreset.(~nextPreset);
-	if(~nextPreset == ~currentPreset){
-		~selected = "* ";
-	}{
-		~selected = "";
-	};
-	~refreshScreen.();
-};
+				~nextPreset = ~nextBankIndex * 32 + ~nextSubIndex;
+				~nextBank = ~presetMeta[~nextPreset][1];
 
-
-//Generic function for showing a text-based menu on Organelle screen
-~textMenu = {
-    arg title, linesArray ...extras;
-	var firstEmpty;
-
-	firstEmpty = linesArray.size-~pageStart-1;
-
-	m.sendMsg("/oled/line/1", title);
-
-    linesArray[~pageStart..(~pageStart+3)].do{
-		arg item, i;
-		var thisPreset, thisPresetMeta;
-		thisPreset = linesArray[~pageStart+i];
-		thisPresetMeta = ("#" ++ thisPreset) ++ " " ++ ~presetMeta[thisPreset][3];
-		if(i == ~selectedLine){
-			m.sendMsg("/oled/line/"++(i+2), "> " ++ thisPresetMeta)
-		}{
-			m.sendMsg("/oled/line/"++(i+2), "  " ++ thisPresetMeta)
-		};
-	};
-
-	extras.do{
-		arg item, i;
-		var line = linesArray.size-~pageStart+2+i;
-		if((firstEmpty<3)&&(line<6)){
-			if((firstEmpty+i+1) == ~selectedLine){
-				m.sendMsg("/oled/line/"++line, "> " ++ item)
-			}{
-				m.sendMsg("/oled/line/"++line, "  " ++ item)
-			};
-		}
-	};
-	~linesDisplayed = (linesArray[~pageStart..(~pageStart+3)] ++ extras)[0..3];
-};
-
-//Update an existing menu created with textMenu 
-~incrementMenu = {
-    arg title, linesArray, delta ...extras;
-    var upLim, lowLim=0, firstEmpty;
-
-	firstEmpty = linesArray.size-~pageStart-1;
-
-	upLim = min(3, (linesArray.size + extras.size - 1));
-
-        if(delta>0){
-            if(~selectedLine<upLim){
-                ~selectedLine = ~selectedLine + 1; 
-            }{
-				if((~pageStart + ~selectedLine)<(linesArray.size + extras.size - 1)){
-                	~pageStart = (~pageStart + 1)
-				}
-            }
-        }{
-            if(~selectedLine>lowLim){
-                ~selectedLine = ~selectedLine - 1;
-            }{
-				if(~pageStart>0){
-                	~pageStart = (~pageStart - 1)
-				}
-            }
-        };
-
-		extras.do{
-			arg item, i;
-			var line;
-			line = linesArray.size-~pageStart+2+i;
-			if((firstEmpty<3) && (line < 6)){
-				if((firstEmpty+i+1) == ~selectedLine){
-					m.sendMsg("/oled/line/"++line, "> " ++ item)
+				if(~nextPreset == ~currentPreset){
+					~selected = "* ";
 				}{
-					m.sendMsg("/oled/line/"++line, "  " ++ item)
-				};
+					~selected = "";
+				}
 			}
-		};	
+		};
 
-		// postln("page start " ++ ~pageStart);
-		// postln("selected line " ++ ~selectedLine);
-		
-		~linesDisplayed = (linesArray[~pageStart..(~pageStart+3)] ++ extras)[0..3];
-		
-        ~textMenu.(title, linesArray, *extras);
-};
+		if(~auxPressed == false){
 
-//Handle selection from a textMenu
-~menuSelect = {
-	arg item;
+			if ((msg[2] != ~rawKnobs[1]) && (~rawKnobs[1] != nil), {
+				~organelleKeyVelocity = (msg[2] / 1023 * 126 + 1).asInteger;
+			});
 
-	switch(item)
-	{'SAVE CURRENT'}{
-		//SAVE THE CURRENT PRESET
-		postln("saving preset " ++ ~currentPreset);
-		~savedPresets = ~savedPresets.add(~currentPreset);
-		~nextPreset = ~currentPreset;
-		~currentScreen = \main;
+			if ((msg[3] != ~rawKnobs[2]) && (~rawKnobs[2] != nil), {
+				~currentOctave = (msg[3] / 1023 * 4).asInteger;
+			});
+
+			if ((msg[4] != ~rawKnobs[3]) && (~rawKnobs[3] != nil), {
+				~setModDepth.(msg[4] / 1023 * 127);
+			});
+		}{
+			if ((msg[2] != ~rawKnobs[1]) && (~rawKnobs[1] != nil), {
+				~bend = msg[2] / 1023 * 2 - 1;
+				~bendExistingNotes.();
+			});
+
+			if ((msg[3] != ~rawKnobs[2]) && (~rawKnobs[2] != nil), {
+				~bendRange = (msg[3] / 1023 * 11 + 1).asInteger;
+			});
+
+			if ((msg[4] != ~rawKnobs[3]) && (~rawKnobs[3] != nil), {
+				//LFO SPEED
+				~setLfoSpeed.(msg[4].linexp(0.0,1023.0,0.05,50.0))
+			});
+		};
+
+
+		5.do {
+			arg i;
+			~rawKnobs[i] = msg[i + 1];
+		};
+
+
 		~refreshScreen.();
-		~saveToFile.();
-	}
-	{'CANCEL'}{
-		~currentScreen = \main;
-		~refreshScreen.()
-	}
-	{'YES'}{
-		//delete this preset
-		postln("removing at " ++ (~toDelete));
-		~savedPresets.removeAt(~toDelete);
-		~currentScreen = \save;
-		~graphics.(\Clear);
-		~selectedLine = 0;
-		~pageStart = 0;
-		~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym);
-		~saveToFile.();
-	}
-	{'NO'}{
-		~currentScreen = \save;
-		~graphics.(\Clear);
-		~selectedLine = 0;
-		~pageStart = 0;
-		~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym);
-	}
-	{//DEFAULT CASE IS A PRESET ID
-		~nextPreset = item;
-		~setPreset.(item);
-	};
-	~selectedLine = 0;
-	~pageStart = 0;
-};
+	},
+	"/knobs",
+	recvPort:4000
+);
 
-//Routine to govern behavior of organelle encoder long press
-~longEncPress = Routine {
-	~longEncPressState = false;
-	wait(2);
-	~longEncPressState = true;
-	switch(~currentScreen)
-	{\main}{
-		if(~auxPressed == false){		
-			m.sendMsg("/gohome")
+//input from Organelle physical accordion keys
+OSCdef( \RoutePhysicalKeys,
+	{
+
+		arg msg, time, addr, recvPort;
+		var src = \phys;
+
+
+		if(msg[1] == 0){
+			~self.sendMsg("/aux", msg[2]);
 		}{
-			//SHOWING THE SAVED MENU
-			~graphics.(\Clear);
-			~currentScreen = \save;
-			~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym);
-		}
-	}
-	{\save}{
-		//longencpress savemenu
-		//Clear slot
-		~toDelete = ~pageStart + ~selectedLine;
-		if(~selectedLine<~savedPresets.size){
-			~selectedLine=0;
-			~pageStart=0;
-			~graphics.(\Clear);
-			~currentScreen = \confirm;
-			~textMenu.("DELETE SAVE?",[],'NO','YES');
-			m.sendMsg("/oled/line/4","to be deleted:");
-			m.sendMsg("/oled/line/5", ("#" ++ ~savedPresets[~toDelete]) ++ " " ++ ~presetMeta[~savedPresets[~toDelete]][3])
-		}{
-			"can't delete symbols".postln;
-		}
-	}
-};
 
-//A few functions to help with MIDI input
-~bendExistingNotes = {
-	~noteArrayDX7.do({
-			arg item, i;
-
-			if(item != nil){
-				var new;
-				new = (i + ~vr[131] - 24 + (~bend * ~bendRange)).midicps;
-				item.set(\pitch, new);
+			if (msg[2] > 0){
+					
+				~self.sendMsg("/note", msg[1] + 59, ~organelleKeyVelocity,src );
+				
+			}{
+				~self.sendMsg("/note", msg[1] + 59, 0,src);
 			}
-		})
-};
+		};
+	},
+	"/key",
+	recvPort:4000
+);
 
-~setModDepth = {
-	arg val;
+// input from Organelle encoder msg[1] contains direction. 0=right, 1=left
+OSCdef( \enc,
+	{
+		arg msg, time, addr, recvPort;
+		var delta;
 
-	~modWheel = (val / 127 * 99).asInteger;
-
-	~headno.set(\pitchCons, ~dx7_voice_pms_to_semitones[~vr[138]] * (~modWheel / 99));
-	~headno.set(\lfo_amd, ~dx7_voice_amd_to_ol_adjustment[~vr[136]] * (~modWheel / 99));
-
-	~modDepthDisplay = (val / 127 * 100).asInteger;
-	~refreshScreen.();
-};
-
-~setLfoSpeed = {
-	arg val;
-
-	~lfoSpeed = val;
-
-	~headno.set(\lfo_speed, ~lfoSpeed);
-
-	~refreshScreen.();
-};
-
-//Save file management. When a preset is saved, the whole list is re-written to file dx7_state
-~saveToFile = {
-	var presetFile, state = "";
-
-	presetFile = File.open(~presetPath,"w");
-
-		~savedPresets.do({
-			arg item;
-			state = state ++ item ++ "\n"
-		});
-
-		postln("writing save file: " ++ ~savedPresets);
-		presetFile.write(state);
-		presetFile.close;
-};
-
-~loadFromFile = {
-	if(File.exists(~presetPath)){
-		postln("found preset file, loading saved presets");
-		~savedPresets = FileReader.read(~presetPath);
-		if(~savedPresets==nil){
-			~savedPresets = [];
+		if(~auxPressed){
+			delta = 32;
 		}{
-			~savedPresets.do{
-				arg item, i;
-					~savedPresets[i] = item[0].asInteger;
+			delta = 1;
+		};
+
+		switch(~currentScreen)
+		{\main}{
+
+			if(msg[1]>0) {
+				if(~nextPreset<(16384-delta)){
+					~nextPreset = ~nextPreset + delta;
+				}{~nextPreset = 16383}
+			}{
+				if(~nextPreset>=delta){
+					~nextPreset = ~nextPreset - delta;
+				}{~nextPreset = 0}
+			};
+
+			~nextBank = ~presetMeta[~nextPreset][1];
+
+			if(~nextPreset == ~currentPreset){
+				~selected = "* ";
+			}{
+				~selected = "";
+			};
+
+			~refreshScreen.();
+		}
+		{\save}{
+			//SAVE MENU ENCCCC
+			~incrementMenu.(~saveMenuTitle, ~savedPresets, msg[1], ~newSaveSym, ~cancelSym)
+		}
+		{\confirm}{
+			//confirm menu enc
+			~incrementMenu.("DELETE SAVE?",[],msg[1],'NO','YES');
+		}
+	},
+	"/encoder/turn",
+	recvPort:4000
+);
+
+//Organelle encoder button behavior.
+OSCdef( \encbut,
+	{
+		arg msg, time, addr, recvPort;
+		//press encoder to pop patch menu
+
+		if(msg[1]>0){
+			//enc button down
+			
+			~longEncPress.reset.play;
+			
+		}{
+			//enc button up
+			~longEncPress.stop;
+			if(~longEncPressState == false){
+				switch(~currentScreen)
+				{\main}{
+					if(~auxPressed == false){
+						~setPreset.(~nextPreset);
+					}{
+						~randomPatch.();
+					}
+				}
+				{
+					//SAVE MENU ENCBUT UP
+					~currentScreen = \main;
+
+					~menuSelect.(~linesDisplayed[~selectedLine]);
+				};
+				~longEncPressState = false;
 			}
 		}
-	}{
-		postln("no preset file found");
-		~savedPresets = [];
-	};
+	},
+	"/encoder/button",
+	recvPort:4000
+);
 
-	~savedPresets.postln;
-};
+//Organelle aux button (left of the keyboard)
+OSCdef( \aux,
+	{
+		arg msg, time, addr, recvPort;
+
+		if(msg[1]>0){
+			~auxPressed = true;
+			m.sendMsg("/led", 4);
+		}{
+			~bend = 0.0;
+			~bendExistingNotes.();
+
+			~auxPressed = false;
+
+			m.sendMsg("/led", 0);
+		};
+
+		if(~currentScreen == \main){
+			~refreshScreen.();
+		}
+	},
+	"/aux",
+	recvPort:57120
+);
+
+//Organelle PEDAL input
+OSCdef( \fs,
+	{
+		arg msg, time, addr, recvPort;
+
+		if(msg[1]>0){
+			~self.sendMsg("/sustain", 0)
+		}{
+			~self.sendMsg("/sustain", 1)
+		};
+	},
+	"/fs",
+	recvPort:4000
+);
+
+//MIDI CC for sustain pedal is caught here
+MIDIdef.cc(\sustainCC,
+	{
+		arg ... msg;
+
+		if (msg[0]>125){
+			~self.sendMsg("/sustain", 1);
+		};
+		if(msg[0]<5){
+			~self.sendMsg("/sustain", 0);
+		}
+
+	},
+	64 //SUSTAIN PEDAL CC VALUE;
+);
+
+//input from MIDI and PEDAL are merged here to establish sustain state
+OSCdef( \sustain,
+	{
+		arg msg, time, addr, recvPort;
+
+		if (msg[1]>0){
+			~sustainedNotes = Set.newFrom(~keysDown);
+			~sustain = true;
+
+		}{
+			~sustain = false;
+			~sustainedNotes.do{
+				arg item;
+				if(~keysDown.includes(item)== false){
+					~noteParser.(item, 0);
+				}
+			};
+			~sustainedNotes = Set.new;
+		};
+
+	},
+	"/sustain",
+	recvPort:57120
+);
+
+//Called whenever a note is either received via MIDI or played via Organelle keyboard
+OSCdef( \note,
+	{
+		arg msg, time, addr, recvPort;
+
+
+		if(msg[2]>0){
+			if(msg[3] == \phys){
+				~organelleTranspose = ~octaveTable[~currentOctave];
+			}{
+				~organelleTranspose = 0;
+			};
+
+			~keysDown.add(msg[1]);
+			if(~sustain){~sustainedNotes.add(msg[1])};
+			~noteParser.(msg[1],msg[2]);
+		}{
+			~keysDown.remove(msg[1]);
+			if (~sustainedNotes.includes(msg[1])==false){
+				~noteParser.(msg[1],msg[2]);
+			}
+		};
+
+	},
+	"/note",
+	recvPort:57120
+);
+
+//Catch MIDI pitchbend input
+MIDIdef.bend(\pitchbend,
+	{
+		arg raw;
+
+		~bend = (raw - 8192).clip(-8191,8191) / 8191;
+		if(~auxPressed){
+			~refreshScreen.();
+		};
+
+		//bend is calculated to be high resolution pitch bend multiplier from -1.0 to 1.0, 0 at rest.
+
+
+		~bendExistingNotes.();
+
+	}
+);
+
+//Catch MIDI modwheel input
+MIDIdef.cc(\modDepth,
+	{
+		arg val;
+
+		~setModDepth.(val);
+	},
+	1 //MODWHEEL CC
+);
