@@ -2,10 +2,10 @@
 //This patch implements every? DX7 preset known to humanity with an easy interface on Organelle
 //Save your favorites, jump to random presets, sequence/control via MIDI
 
-//Load file with painstakingly measured envelopes and conversions from Ege Gonul
+//Load file with painstakingly measured envelopes and conversions from Aziz Ege Gonul
 "/tmp/patch/magic.scd".load;
 
-//Load file with additional magic spells from Ege that set up the Synth parameters
+//Load file with additional magic spells from Aziz that set up the Synth parameters
 "/tmp/patch/lib.scd".load;
 
 //Load file with SynthDefs for making sounds (These also from Ege)
