@@ -88,7 +88,7 @@ OSCdef( \aux,
 		//define this in your patch if you need it
 	},
 	"/aux",
-	recvPort:4000
+	recvPort:57120
 );
 
 OSCdef( \note,
