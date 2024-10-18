@@ -18,6 +18,7 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 
 ~presetPath = "/tmp/patch/dx7_state";
 
+~rawKnobs = Array.newClear(6);
 ~organelleKeyVelocity = 100;
 ~sustain = false;
 ~sustainedNotes = Set.new(128);
@@ -50,8 +51,26 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 ~pageStart = 0;
 ~linesDisplayed= [];
 
+//set things up
 
-///MAIN FUNCTIONS
+fork {
+	wait(0.1);
+	~setPreset.(~initialPreset);
+	~drawKeyboard.();
+	postln("Initial preset loaded");
+
+	m.sendMsg("/enablepatchsub", 1);
+	~loadFromFile.();
+	if(~savedPresets[~savedPresets.size-1]!=nil){
+		~nextPreset = ~savedPresets[~savedPresets.size-1];
+		~setPreset.(~savedPresets[~savedPresets.size-1])
+	};
+	~graphics.(\Clear);
+	~refreshScreen.();	
+};
+
+
+//define functions- these are mostly called by OSCdefs and MIDIdefs in interface.scd
 
 ~noteParser = { arg note, vel;
 	1.do { arg yxx;
@@ -89,6 +108,7 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 };
 
 
+//Unpack preset information
 f = { arg x, y ,z; //y value, z cc no
 	if(x == 3,
 		{ ~vr[y] = z },
@@ -96,8 +116,69 @@ f = { arg x, y ,z; //y value, z cc no
 	)
 };
 
+//Reload the main UI
+~refreshScreen = {
+		~nextBank = ~presetMeta[~nextPreset][1];
+		m.sendMsg("/oled/line/1",(~selected ++ ~presetMeta[~nextPreset][3]).padRight(15) ++ ("#" ++ ~nextPreset).asString.padLeft(6));
+		m.sendMsg("/oled/line/2", "bank " ++ ~nextBank.padRight(9));
+		if(~auxPressed == false){
+			m.sendMsg("/oled/line/3", "velocity " ++ ~organelleKeyVelocity);
+			m.sendMsg("/oled/line/4", "octave " ++ ~octaveTable[~currentOctave]);
+			m.sendMsg("/oled/line/5", "lfo depth " ++ ~modDepthDisplay ++ "%")
+		}{
+			m.sendMsg("/oled/line/3", "bend " ++ (~bend * 100).asStringPrec(3) ++ "%");
+			m.sendMsg("/oled/line/4", "bend range " ++ ~bendRange);
+			m.sendMsg("/oled/line/5", "lfo speed " ++ ~lfoSpeed.asStringPrec(3) ++ " Hz")
+		};
+};
+
+//When focus has changed, update context to reflect our new position
+~updateMetadata = {
+	~nextBank = ~presetMeta[~nextPreset][1];
+	~nextBankIndex = (~nextPreset / 511).floor + (~nextPreset % 511);
+	~nextSubIndex = ~nextPreset % 31;
+	~modDepthDisplay = (~vr[135] / 99 * 100).asInteger;
+};
+
+//Given a preset index, load that preset
+~setPreset = {
+	arg g;
+	var p;
+	postln("set preset " ++ g);
+	~modWheel = nil;
+	p = ~presets[g][0];
+	145.do({arg item;
+		var k = (p.at((item*2)) ++ p.at((item*2) + 1)).asInteger;
+		f.value(~cirklonCCparse[item][0],~cirklonCCparse[item][1],k);
+	});
+	~currentPreset = g;
+	~lfo_speed = ~dx7_voice_lfo_frequency[~vr[132]];
+	~updateMetadata.();
+	if(~nextPreset == ~currentPreset){
+		~selected = "* ";
+	}{
+		~selected = "";
+	};
+	~refreshScreen.();
+};
+
+//Load a random patch!
+~randomPatch = {
+	var new;
+	new = rrand(0,16383);
+	~nextPreset = new;
+	~setPreset.(~nextPreset);
+	if(~nextPreset == ~currentPreset){
+		~selected = "* ";
+	}{
+		~selected = "";
+	};
+	~refreshScreen.();
+};
 
 
+
+//Generic function for showing a text-based menu on Organelle screen
 ~textMenu = {
     arg title, linesArray ...extras;
 	var firstEmpty;
@@ -132,6 +213,7 @@ f = { arg x, y ,z; //y value, z cc no
 	~linesDisplayed = (linesArray[~pageStart..(~pageStart+3)] ++ extras)[0..3];
 };
 
+//Update an existing menu created with textMenu 
 ~incrementMenu = {
     arg title, linesArray, delta ...extras;
     var upLim, lowLim=0, firstEmpty;
@@ -179,80 +261,7 @@ f = { arg x, y ,z; //y value, z cc no
         ~textMenu.(title, linesArray, *extras);
 };
 
-~updateMetadata = {
-	~nextBank = ~presetMeta[~nextPreset][1];
-	~nextBankIndex = (~nextPreset / 511).floor + (~nextPreset % 511);
-	~nextSubIndex = ~nextPreset % 31;
-	~modDepthDisplay = (~vr[135] / 99 * 100).asInteger;
-};
-
-~randomPatch = {
-	var new;
-	new = rrand(0,16383);
-	~nextPreset = new;
-	~setPreset.(~nextPreset);
-	if(~nextPreset == ~currentPreset){
-		~selected = "* ";
-	}{
-		~selected = "";
-	};
-	~refreshScreen.();
-};
-
-~setPreset = {
-	arg g;
-	var p;
-	postln("set preset " ++ g);
-	~modWheel = nil;
-	p = ~presets[g][0];
-	145.do({arg item;
-		var k = (p.at((item*2)) ++ p.at((item*2) + 1)).asInteger;
-		f.value(~cirklonCCparse[item][0],~cirklonCCparse[item][1],k);
-	});
-	~currentPreset = g;
-	~lfo_speed = ~dx7_voice_lfo_frequency[~vr[132]];
-	~updateMetadata.();
-	if(~nextPreset == ~currentPreset){
-		~selected = "* ";
-	}{
-		~selected = "";
-	};
-	~refreshScreen.();
-};
-
-~longEncPress = Routine {
-	~longEncPressState = false;
-	wait(2);
-	~longEncPressState = true;
-	switch(~currentScreen)
-	{\main}{
-		if(~auxPressed == false){		
-			m.sendMsg("/gohome")
-		}{
-			//SHOWING THE SAVED MENU
-			~graphics.(\Clear);
-			~currentScreen = \save;
-			~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym);
-		}
-	}
-	{\save}{
-		//longencpress savemenu
-		//Clear slot
-		~toDelete = ~pageStart + ~selectedLine;
-		if(~selectedLine<~savedPresets.size){
-			~selectedLine=0;
-			~pageStart=0;
-			~graphics.(\Clear);
-			~currentScreen = \confirm;
-			~textMenu.("DELETE SAVE?",[],'NO','YES');
-			m.sendMsg("/oled/line/4","to be deleted:");
-			m.sendMsg("/oled/line/5", ("#" ++ ~savedPresets[~toDelete]) ++ " " ++ ~presetMeta[~savedPresets[~toDelete]][3])
-		}{
-			"can't delete symbols".postln;
-		}
-	}
-};
-
+//Handle selection from a textMenu
 ~menuSelect = {
 	arg item;
 
@@ -296,26 +305,108 @@ f = { arg x, y ,z; //y value, z cc no
 	~pageStart = 0;
 };
 
-///INTERFACE
-
-~rawKnobs = Array.newClear(6);
-
-~refreshScreen = {
-		~nextBank = ~presetMeta[~nextPreset][1];
-		m.sendMsg("/oled/line/1",(~selected ++ ~presetMeta[~nextPreset][3]).padRight(15) ++ ("#" ++ ~nextPreset).asString.padLeft(6));
-		m.sendMsg("/oled/line/2", "bank " ++ ~nextBank.padRight(9));
-		if(~auxPressed == false){
-			m.sendMsg("/oled/line/3", "velocity " ++ ~organelleKeyVelocity);
-			m.sendMsg("/oled/line/4", "octave " ++ ~octaveTable[~currentOctave]);
-			m.sendMsg("/oled/line/5", "lfo depth " ++ ~modDepthDisplay ++ "%")
+//Routine to govern behavior of organelle encoder long press
+~longEncPress = Routine {
+	~longEncPressState = false;
+	wait(2);
+	~longEncPressState = true;
+	switch(~currentScreen)
+	{\main}{
+		if(~auxPressed == false){		
+			m.sendMsg("/gohome")
 		}{
-			m.sendMsg("/oled/line/3", "bend " ++ (~bend * 100).asStringPrec(3) ++ "%");
-			m.sendMsg("/oled/line/4", "bend range " ++ ~bendRange);
-			m.sendMsg("/oled/line/5", "lfo speed " ++ ~lfoSpeed.asStringPrec(3) ++ " Hz")
-		};
+			//SHOWING THE SAVED MENU
+			~graphics.(\Clear);
+			~currentScreen = \save;
+			~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym);
+		}
+	}
+	{\save}{
+		//longencpress savemenu
+		//Clear slot
+		~toDelete = ~pageStart + ~selectedLine;
+		if(~selectedLine<~savedPresets.size){
+			~selectedLine=0;
+			~pageStart=0;
+			~graphics.(\Clear);
+			~currentScreen = \confirm;
+			~textMenu.("DELETE SAVE?",[],'NO','YES');
+			m.sendMsg("/oled/line/4","to be deleted:");
+			m.sendMsg("/oled/line/5", ("#" ++ ~savedPresets[~toDelete]) ++ " " ++ ~presetMeta[~savedPresets[~toDelete]][3])
+		}{
+			"can't delete symbols".postln;
+		}
+	}
 };
 
+~bendExistingNotes = {
+	~noteArrayDX7.do({
+			arg item, i;
 
+			if(item != nil){
+				var new;
+				new = (i + ~vr[131] - 24 + (~bend * ~bendRange)).midicps;
+				item.set(\pitch, new);
+			}
+		})
+};
+
+~setModDepth = {
+	arg val;
+
+	~modWheel = (val / 127 * 99).asInteger;
+
+	~headno.set(\pitchCons, ~dx7_voice_pms_to_semitones[~vr[138]] * (~modWheel / 99));
+	~headno.set(\lfo_amd, ~dx7_voice_amd_to_ol_adjustment[~vr[136]] * (~modWheel / 99));
+
+	~modDepthDisplay = (val / 127 * 100).asInteger;
+	~refreshScreen.();
+};
+
+~setLfoSpeed = {
+	arg val;
+
+	~lfoSpeed = val;
+
+	~headno.set(\lfo_speed, ~lfoSpeed);
+
+	~refreshScreen.();
+};
+
+~saveToFile = {
+	var presetFile, state = "";
+
+	presetFile = File.open(~presetPath,"w");
+
+		~savedPresets.do({
+			arg item;
+			state = state ++ item ++ "\n"
+		});
+
+		postln("writing save file: " ++ ~savedPresets);
+		presetFile.write(state);
+		presetFile.close;
+};
+
+~loadFromFile = {
+	if(File.exists(~presetPath)){
+		postln("found preset file, loading saved presets");
+		~savedPresets = FileReader.read(~presetPath);
+		if(~savedPresets==nil){
+			~savedPresets = [];
+		}{
+			~savedPresets.do{
+				arg item, i;
+					~savedPresets[i] = item[0].asInteger;
+			}
+		}
+	}{
+		postln("no preset file found");
+		~savedPresets = [];
+	};
+
+	~savedPresets.postln;
+};
 
 OSCdef( \knobs,
 	{
@@ -610,17 +701,7 @@ MIDIdef.bend(\pitchbend,
 	}
 );
 
-~bendExistingNotes = {
-	~noteArrayDX7.do({
-			arg item, i;
 
-			if(item != nil){
-				var new;
-				new = (i + ~vr[131] - 24 + (~bend * ~bendRange)).midicps;
-				item.set(\pitch, new);
-			}
-		})
-};
 
 MIDIdef.cc(\modDepth,
 	{
@@ -630,78 +711,3 @@ MIDIdef.cc(\modDepth,
 	},
 	1 //MODWHEEL CC
 );
-
-~setModDepth = {
-	arg val;
-
-	~modWheel = (val / 127 * 99).asInteger;
-
-	~headno.set(\pitchCons, ~dx7_voice_pms_to_semitones[~vr[138]] * (~modWheel / 99));
-	~headno.set(\lfo_amd, ~dx7_voice_amd_to_ol_adjustment[~vr[136]] * (~modWheel / 99));
-
-	~modDepthDisplay = (val / 127 * 100).asInteger;
-	~refreshScreen.();
-};
-
-~setLfoSpeed = {
-	arg val;
-
-	~lfoSpeed = val;
-
-	~headno.set(\lfo_speed, ~lfoSpeed);
-
-	~refreshScreen.();
-};
-
-
-
-fork {
-	wait(0.1);
-	~setPreset.(~initialPreset);
-	~drawKeyboard.();
-	postln("Initial preset loaded");
-
-	m.sendMsg("/enablepatchsub", 1);
-	~loadFromFile.();
-	if(~savedPresets[~savedPresets.size-1]!=nil){
-		~nextPreset = ~savedPresets[~savedPresets.size-1];
-		~setPreset.(~savedPresets[~savedPresets.size-1])
-	};
-	~graphics.(\Clear);
-	~refreshScreen.();	
-};
-
-~saveToFile = {
-	var presetFile, state = "";
-
-	presetFile = File.open(~presetPath,"w");
-
-		~savedPresets.do({
-			arg item;
-			state = state ++ item ++ "\n"
-		});
-
-		postln("writing save file: " ++ ~savedPresets);
-		presetFile.write(state);
-		presetFile.close;
-};
-
-~loadFromFile = {
-	if(File.exists(~presetPath)){
-		postln("found preset file, loading saved presets");
-		~savedPresets = FileReader.read(~presetPath);
-		if(~savedPresets==nil){
-			~savedPresets = [];
-		}{
-			~savedPresets.do{
-				arg item, i;
-					~savedPresets[i] = item[0].asInteger;
-			}
-		}
-	}{
-		postln("no preset file found");
-		~savedPresets = [];
-	};
-
-	~savedPresets.postln;
-};
