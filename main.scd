@@ -82,14 +82,14 @@ f = { arg x, y ,z; //y value, z cc no
 ~currentOctave = 2;
 ~organelleTranspose = 0;
 ~activeMessage = false;
-~saveMenu = false;
-~confirmMenu = false;
+~currentScreen = \main;
 ~modDepthDisplay = 0;
 ~lfoSpeed = ~dx7_voice_lfo_frequency[~vr[132]];
 ~selected = "* ";
 ~saveMenuTitle = "LOAD/SAVE";
 ~newSaveSym = 'SAVE CURRENT';
 ~cancelSym = 'CANCEL';
+~toDelete = nil;
 
 ~bend = 0.0;
 ~bendRange = 12; // range for pitch bend. +/- in semitones.
@@ -225,18 +225,28 @@ f = { arg x, y ,z; //y value, z cc no
 	~longEncPressState = false;
 	wait(2);
 	~longEncPressState = true;
-	if(~saveMenu == false){
+	switch(~currentScreen)
+	{\main}{
 		if(~auxPressed == false){		
 			m.sendMsg("/gohome")
 		}{
 			//SHOWING THE SAVED MENU
 			~graphics.(\Clear);
-			~saveMenu = true;
+			~currentScreen = \save;
 			~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym);
 		}
-	}{
+	}
+	{\save}{
 		//longencpress savemenu
 		//Clear slot
+		~toDelete = ~pageStart + ~selectedLine;
+		~selectedLine=0;
+		~pageStart=0;
+		~graphics.(\Clear);
+		~currentScreen = \confirm;
+		~textMenu.("DELETE SAVE?",[],'NO','YES');
+		m.sendMsg("/oled/line/4","to be deleted:");
+		m.sendMsg("/oled/line/5", ("#" ++ ~savedPresets[~toDelete]) ++ " " ++ ~presetMeta[~savedPresets[~toDelete]][3])
 	}
 };
 
@@ -249,12 +259,32 @@ f = { arg x, y ,z; //y value, z cc no
 		postln("saving preset " ++ ~currentPreset);
 		~savedPresets = ~savedPresets.add(~currentPreset);
 		~nextPreset = ~currentPreset;
+		~currentScreen = \main;
 		~refreshScreen.();
 		~saveToFile.();
 	}
-	{'CANCEL'}{~refreshScreen.()}
-	{'YES'}{}
-	{'NO'}{}
+	{'CANCEL'}{
+		~currentScreen = \main;
+		~refreshScreen.()
+	}
+	{'YES'}{
+		//delete this preset
+		postln("removing at " ++ (~toDelete));
+		~savedPresets.removeAt(~toDelete);
+		~currentScreen = \save;
+		~graphics.(\Clear);
+		~selectedLine = 0;
+		~pageStart = 0;
+		~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym);
+		~saveToFile.();
+	}
+	{'NO'}{
+		~currentScreen = \save;
+		~graphics.(\Clear);
+		~selectedLine = 0;
+		~pageStart = 0;
+		~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym);
+	}
 	{//DEFAULT CASE IS A PRESET ID
 		~nextPreset = item;
 		~setPreset.(item);
@@ -382,7 +412,8 @@ OSCdef( \enc,
 			delta = 1;
 		};
 
-		if(~saveMenu == false){
+		switch(~currentScreen)
+		{\main}{
 
 			if(msg[1]>0) {
 				if(~nextPreset<(16384-delta)){
@@ -403,9 +434,14 @@ OSCdef( \enc,
 			};
 
 			~refreshScreen.();
-		}{
+		}
+		{\save}{
 			//SAVE MENU ENCCCC
 			~incrementMenu.(~saveMenuTitle, ~savedPresets, msg[1], ~newSaveSym, ~cancelSym)
+		}
+		{\confirm}{
+			//confirm menu enc
+			~incrementMenu.("DELETE SAVE?",[],msg[1],'NO','YES');
 		}
 	},
 	"/encoder/turn",
@@ -426,20 +462,22 @@ OSCdef( \encbut,
 			//enc button up
 			~longEncPress.stop;
 			if(~longEncPressState == false){
-				if(~saveMenu == false){
+				switch(~currentScreen)
+				{\main}{
 					if(~auxPressed == false){
 						~setPreset.(~nextPreset);
 					}{
 						~randomPatch.();
 					}
-				}{
+				}
+				{
 					//SAVE MENU ENCBUT UP
-					~saveMenu = false;
+					~currentScreen = \main;
 
 					~menuSelect.(~linesDisplayed[~selectedLine]);
-				}
-			};
-			~longEncPressState = false;
+				};
+				~longEncPressState = false;
+			}
 		}
 	},
 	"/encoder/button",
@@ -464,7 +502,7 @@ OSCdef( \aux,
 			m.sendMsg("/led", 0);
 		};
 
-		if(~saveMenu == false){
+		if(~currentScreen == \main){
 			~refreshScreen.();
 		}
 	},
