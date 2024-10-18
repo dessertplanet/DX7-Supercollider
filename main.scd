@@ -240,13 +240,17 @@ f = { arg x, y ,z; //y value, z cc no
 		//longencpress savemenu
 		//Clear slot
 		~toDelete = ~pageStart + ~selectedLine;
-		~selectedLine=0;
-		~pageStart=0;
-		~graphics.(\Clear);
-		~currentScreen = \confirm;
-		~textMenu.("DELETE SAVE?",[],'NO','YES');
-		m.sendMsg("/oled/line/4","to be deleted:");
-		m.sendMsg("/oled/line/5", ("#" ++ ~savedPresets[~toDelete]) ++ " " ++ ~presetMeta[~savedPresets[~toDelete]][3])
+		if(~selectedLine<~savedPresets.size){
+			~selectedLine=0;
+			~pageStart=0;
+			~graphics.(\Clear);
+			~currentScreen = \confirm;
+			~textMenu.("DELETE SAVE?",[],'NO','YES');
+			m.sendMsg("/oled/line/4","to be deleted:");
+			m.sendMsg("/oled/line/5", ("#" ++ ~savedPresets[~toDelete]) ++ " " ++ ~presetMeta[~savedPresets[~toDelete]][3])
+		}{
+			"can't delete symbols".postln;
+		}
 	}
 };
 
