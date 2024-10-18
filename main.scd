@@ -58,6 +58,9 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 ~pageStart = 0; // paging index for text menus
 ~linesDisplayed= []; //array of strings for text menus
 
+~noteOrder = Array.new(24);
+~voiceIndex = 0;
+
 //Use a routine to set things up, waiting 0.1 seconds before doing the other steps in order to avoid issues with 
 //supercollider starting up.
 
@@ -86,7 +89,10 @@ fork {
 		if(vel > 0,
 			{
 				//150.do({ arg c; ("cc#" ++ c.asString ++ " = " ++ ~vr[c]).postln}); //general cc printer, rates are not inverted.
-				if(~noteArrayDX7[note] !== nil,~noteArrayDX7[note].free);
+				if(~noteArrayDX7[note] !== nil){
+					~noteArrayDX7[note].free;
+					~voiceIndex = ~voiceIndex - 1;
+				};
 
 				if(~vr[137] == 1, {//lfo sync controller
 					if(~betass == 1,   {
@@ -104,13 +110,26 @@ fork {
 						~headno.set(~defjamHead0.())
 					});
 				});
-				~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel),~groupDX7);
-				//~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel), ~groupDX7); //orjburayi addtotail diye degistirdin
 
+				if(~noteOrder.wrapAt(~voiceIndex) !== nil){
+					~noteOrder.wrapAt(~voiceIndex).free;
+					~noteArrayDX7.do{
+						arg item, i;
+						if(item !== nil){
+							if (item.nodeID == ~noteOrder.wrapAt(~voiceIndex).nodeID, ~noteArrayDX7[i] = nil);
+						}
+					};
+					~noteOrder.removeAt(~voiceIndex % ~noteOrder.size);
+				};
+				
+				~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel),~groupDX7);
+				~noteOrder = ~noteOrder.add(Synth.basicNew(\DX7,s,~noteArrayDX7[note].nodeID));
+				~voiceIndex = ~voiceIndex + 1;
 			},
 			{
 				~noteArrayDX7[note].set(\gate,0);
 				~noteArrayDX7[note] = nil;
+				s.numSynths.postln;
 
 		})
 	}
