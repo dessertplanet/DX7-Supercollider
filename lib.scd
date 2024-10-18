@@ -1,4 +1,4 @@
-//functions for use in main
+//Spells cast by Ege Gonul to reproduce DX7 sounds (their functions mostly unchanged here)
 
 ~scale_vrv = { arg dummy, scaling_curve, scaling_depth, vrv;
 	switch(scaling_curve,
@@ -241,11 +241,6 @@
 	ptchEnv = ~defPitchEnv.value((99-~vr[139]),(99-~vr[140]),(99-~vr[141]),(99-~vr[142]),~vr[143],~vr[144],~vr[145],~vr[146]);
 	a = bil ++ a ++ ptchEnv;
 	a = a ++ [\osc_sync, ((~vr[130] * (-1)) + 1)];
-	/*a.pairsDo({
-	arg key, val;
-
-	postln(key ++ ": " ++ val);
-	});*/
 	a;
 
 };
