@@ -12,15 +12,16 @@
 ~refreshScreen = {
 		~nextBank = ~presetMeta[~nextPreset][1];
 		m.sendMsg("/oled/line/1",(~selected ++ ~presetMeta[~nextPreset][3]).padRight(15) ++ ("#" ++ ~nextPreset).asString.padLeft(6));
-		m.sendMsg("/oled/line/2", "bank " ++ ~nextBank.padRight(9));
 		if(~auxPressed == false){
+			m.sendMsg("/oled/line/2", "bank " ++ ~nextBank.padRight(9));
 			m.sendMsg("/oled/line/3", "velocity " ++ ~organelleKeyVelocity);
-			m.sendMsg("/oled/line/4", "octave " ++ ~octaveTable[~currentOctave]);
-			m.sendMsg("/oled/line/5", "lfo depth " ++ ~modDepthDisplay ++ "%")
+			m.sendMsg("/oled/line/4", "lfo depth " ++ ~modDepthDisplay ++ "%");
+			m.sendMsg("/oled/line/5", "octave " ++ ~octaveTable[~currentOctave]);
 		}{
-			m.sendMsg("/oled/line/3", "bend " ++ (~bend * 100).asStringPrec(3) ++ "%");
-			m.sendMsg("/oled/line/4", "bend range " ++ ~bendRange);
-			m.sendMsg("/oled/line/5", "lfo speed " ++ ~lfoSpeed.asStringPrec(3) ++ " Hz")
+			m.sendMsg("/oled/line/2", "bend " ++ (~bend * 100).asStringPrec(3) ++ "%");
+			m.sendMsg("/oled/line/3", "bend range " ++ ~bendRange);
+			m.sendMsg("/oled/line/4", "lfo speed " ++ ~lfoSpeed.asStringPrec(3) ++ " Hz");
+			m.sendMsg("/oled/line/5", "polyphony " ++ ~polyphony);
 		};
 };
 
@@ -163,6 +164,11 @@ f = { arg x, y ,z; //y value, z cc no
 		~savedPresets = ~savedPresets.add(~currentPreset);
 		~nextPreset = ~currentPreset;
 		~currentScreen = \main;
+		if(~nextPreset == ~currentPreset){
+			~selected = "* ";
+		}{
+			~selected = "";
+		};
 		~refreshScreen.();
 		~saveToFile.();
 	}
@@ -197,9 +203,9 @@ f = { arg x, y ,z; //y value, z cc no
 };
 
 //Routine to govern behavior of organelle encoder long press
-~longEncPress = Routine {
+~longEncPress = {
 	~longEncPressState = false;
-	wait(2);
+	wait(1);
 	~longEncPressState = true;
 	switch(~currentScreen)
 	{\main}{
@@ -303,3 +309,26 @@ f = { arg x, y ,z; //y value, z cc no
 
 	~savedPresets.postln;
 };
+
+~resetVoices = {
+	~voiceIndex = 0;
+	~noteOrder.do{
+		arg item, i;
+		if(item !== nil){
+			~silence.(item).r.play;
+		}
+	};
+	~noteArrayDX7 = Array.newClear(128);
+	~noteOrder = Array.new(24);
+};
+
+~silence = {
+	arg synth;
+	var func;
+	func = {
+		synth.set(\totVol,-40);
+		wait(0.1);
+		synth.free;
+	};
+	func;
+}

@@ -26,19 +26,16 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 
 //Declare global variables
 
-////POLYPHONY VARIABLE/////
 
+~polyphony = \POLY;
 ~maxVoices=16; //1-16
-
-///////////////////////////
-
 ~presetPath = "/tmp/patch/dx7_state"; //path to file used to save presets that the user likes
 ~rawKnobs = Array.newClear(6); //array for raw knob values
 ~organelleKeyVelocity = 100; //variable to set the velocity used when user plays a note on the organelle accordion keys
 ~sustain = false; //state of the sustain pedal for synth consumption. Either via MIDI or the PEDAL input on Organelle
 ~sustainedNotes = Set.new(128); //Keep a set of notes to sustain
 ~keysDown = Set.new(128); //Keep track of which keys are down. When the sustain pedal is lifted, these notes don't stop
-~initialPreset= 1; //Startup preset- much waffling went into chooseing this one :)
+~initialPreset= 15983; //Startup preset- much waffling went into chooseing this one :)
 ~currentPreset = ~initialPreset; //variable for currently RUNNING preset
 ~nextPreset = ~initialPreset; //variable for currently SHOWN preset
 ~nextBank = ~presetMeta[~initialPreset][1]; //variable for bank metadata about currently SHOWN preset
@@ -46,6 +43,7 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 ~nextSubIndex = ~initialPreset % 32; // used in math for providing coarse preset knob
 ~auxPressed = false; //state of aux button on Organelle
 ~longEncPressState = false; //state of longpress action for Organelle encoder button
+~longEngPressRoutine = nil;
 ~octaveTable = [-2,-1,0,1,2]; //table of available octaves for organelle accordion keys
 ~currentOctave = 2; // INDEX selected from ~octaveTable.
 ~organelleTranspose = 0; //Transpose in semitones
@@ -96,7 +94,7 @@ fork {
 			{
 				//150.do({ arg c; ("cc#" ++ c.asString ++ " = " ++ ~vr[c]).postln}); //general cc printer, rates are not inverted.
 				if(~noteArrayDX7[note] !== nil){
-					~noteArrayDX7[note].free;
+					~silence.(~noteArrayDX7[note]).r.play;
 					~voiceIndex = ~voiceIndex - 1;
 				};
 
@@ -118,7 +116,7 @@ fork {
 				});
 
 				if(~voiceIndex>(~maxVoices-1)){
-					~noteOrder.removeAt(0).free;
+					~silence.(~noteOrder.removeAt(0)).r.play;
 					~voiceIndex = ~voiceIndex - 1;
 				};
 				
@@ -144,50 +142,65 @@ fork {
 OSCdef( \knobs,
 	{
 		arg msg, time, addr, recvPort;
-
-	
-		if (~rawKnobs[0] != nil){
-			if ((msg[1] - ~rawKnobs[0]).abs > 2){
-				~nextSubIndex = (msg[1] / 1023 * 31).asInteger;
-				~nextBankIndex = (msg[1] / 1023 * 511).asInteger;
-
-				~nextPreset = ~nextBankIndex * 32 + ~nextSubIndex;
-				~nextBank = ~presetMeta[~nextPreset][1];
-
-				if(~nextPreset == ~currentPreset){
-					~selected = "* ";
-				}{
-					~selected = "";
-				}
-			}
-		};
+		var oldPoly = \POLY;
 
 		if(~auxPressed == false){
+
+			if (~rawKnobs[0] != nil){
+				if ((msg[1] - ~rawKnobs[0]).abs > 2){
+					~nextSubIndex = (msg[1] / 1023 * 31).asInteger;
+					~nextBankIndex = (msg[1] / 1023 * 511).asInteger;
+
+					~nextPreset = ~nextBankIndex * 32 + ~nextSubIndex;
+					~nextBank = ~presetMeta[~nextPreset][1];
+
+					if(~nextPreset == ~currentPreset){
+						~selected = "* ";
+					}{
+						~selected = "";
+					}
+				}
+			};
 
 			if ((msg[2] != ~rawKnobs[1]) && (~rawKnobs[1] != nil), {
 				~organelleKeyVelocity = (msg[2] / 1023 * 126 + 1).asInteger;
 			});
 
 			if ((msg[3] != ~rawKnobs[2]) && (~rawKnobs[2] != nil), {
-				~currentOctave = (msg[3] / 1023 * 4).asInteger;
+				if(~modWheel!==nil, ~setModDepth.(msg[3] / 1023 * 127));
 			});
 
 			if ((msg[4] != ~rawKnobs[3]) && (~rawKnobs[3] != nil), {
-				if(~modWheel!==nil, ~setModDepth.(msg[4] / 1023 * 127));
+				~currentOctave = (msg[4] / 1023 * 4).asInteger;
 			});
 		}{
-			if ((msg[2] != ~rawKnobs[1]) && (~rawKnobs[1] != nil), {
-				~bend = msg[2] / 1023 * 2 - 1;
+			if ((msg[1] != ~rawKnobs[0]) && (~rawKnobs[0] != nil), {
+				~bend = msg[1] / 1023 * 2 - 1;
 				~bendExistingNotes.();
 			});
 
+			if ((msg[2] != ~rawKnobs[1]) && (~rawKnobs[1] != nil), {
+				~bendRange = (msg[2] / 1023 * 11 + 1).asInteger;
+			});
+
 			if ((msg[3] != ~rawKnobs[2]) && (~rawKnobs[2] != nil), {
-				~bendRange = (msg[3] / 1023 * 11 + 1).asInteger;
+				//LFO SPEED
+				~setLfoSpeed.(msg[3].linexp(0.0,1023.0,0.05,50.0))
 			});
 
 			if ((msg[4] != ~rawKnobs[3]) && (~rawKnobs[3] != nil), {
-				//LFO SPEED
-				~setLfoSpeed.(msg[4].linexp(0.0,1023.0,0.05,50.0))
+				oldPoly = ~polyphony;
+				if(msg[4] < 512){
+					~polyphony = \MONO;
+					~maxVoices = 1;
+				}{
+					~polyphony = \POLY;
+					~maxVoices = 16;
+				};
+				if(~polyphony !== oldPoly){
+					postln("polyphony: " ++ ~polyphony ++ " oldPoly: " ++ oldPoly);
+					~resetVoices.();
+				}
 			});
 		};
 
@@ -286,11 +299,11 @@ OSCdef( \encbut,
 		if(msg[1]>0){
 			//enc button down
 			
-			~longEncPress.reset.play;
+			~longEncPressRoutine = ~longEncPress.r.play;
 			
 		}{
 			//enc button up
-			~longEncPress.stop;
+			~longEncPressRoutine.stop;
 			if(~longEncPressState == false){
 				switch(~currentScreen)
 				{\main}{
