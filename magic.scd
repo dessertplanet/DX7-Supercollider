@@ -195,7 +195,7 @@
 	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	bil = ~defjamHead1.();
 	a =[
-		\pitch, (note + ~vr[131] - 24 + (~bend * ~bendRange) + (~organelleTranspose * 12)).midicps,
+		\pitch, (note + ~vr[131] - 24 + (~bend * ~bendRange) + (~transpose * 12)).midicps,
 		\amp, vel.linlin(0,127,-18,18)];
 	6.do { arg c;
 		var trCoarse, trFine, trDetune, bloke;//176

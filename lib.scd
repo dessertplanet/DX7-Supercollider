@@ -243,7 +243,7 @@ f = { arg x, y ,z; //y value, z cc no
 
 			if(item != nil){
 				var new;
-				new = (i + ~vr[131] - 24 + (~bend * ~bendRange)).midicps;
+				new = (i + ~vr[131] - 24 + (~bend * ~bendRange) + (~transpose*12)).midicps;
 				item.set(\pitch, new);
 			}
 		})

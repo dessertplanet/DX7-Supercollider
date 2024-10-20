@@ -46,7 +46,7 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 ~longEngPressRoutine = nil;
 ~octaveTable = [-2,-1,0,1,2]; //table of available octaves for organelle accordion keys
 ~currentOctave = 2; // INDEX selected from ~octaveTable.
-~organelleTranspose = 0; //Transpose in semitones
+~transpose = 0; //Transpose in semitones
 ~currentScreen = \main; // variable to keep track of what is on the screen- used for governing controls
 ~modDepthDisplay = 0; //mod depth to display in a friendly manner
 ~lfoSpeed = ~dx7_voice_lfo_frequency[~vr[132]]; //master LFO frequency in Hz
@@ -164,28 +164,40 @@ OSCdef( \knobs,
 
 			if ((msg[2] != ~rawKnobs[1]) && (~rawKnobs[1] != nil), {
 				~organelleKeyVelocity = (msg[2] / 1023 * 126 + 1).asInteger;
+				~nextPreset = ~currentPreset;
+				~selected = "* ";
 			});
 
 			if ((msg[3] != ~rawKnobs[2]) && (~rawKnobs[2] != nil), {
 				if(~modWheel!==nil, ~setModDepth.(msg[3] / 1023 * 127));
+				~nextPreset = ~currentPreset;
+				~selected = "* ";
 			});
 
 			if ((msg[4] != ~rawKnobs[3]) && (~rawKnobs[3] != nil), {
 				~currentOctave = (msg[4] / 1023 * 4).asInteger;
+				~nextPreset = ~currentPreset;
+				~selected = "* ";
 			});
 		}{
 			if ((msg[1] != ~rawKnobs[0]) && (~rawKnobs[0] != nil), {
 				~bend = msg[1] / 1023 * 2 - 1;
 				~bendExistingNotes.();
+				~nextPreset = ~currentPreset;
+				~selected = "* ";
 			});
 
 			if ((msg[2] != ~rawKnobs[1]) && (~rawKnobs[1] != nil), {
 				~bendRange = (msg[2] / 1023 * 11 + 1).asInteger;
+				~nextPreset = ~currentPreset;
+				~selected = "* ";
 			});
 
 			if ((msg[3] != ~rawKnobs[2]) && (~rawKnobs[2] != nil), {
 				//LFO SPEED
-				~setLfoSpeed.(msg[3].linexp(0.0,1023.0,0.05,50.0))
+				~setLfoSpeed.(msg[3].linexp(0.0,1023.0,0.05,50.0));
+				~nextPreset = ~currentPreset;
+				~selected = "* ";
 			});
 
 			if ((msg[4] != ~rawKnobs[3]) && (~rawKnobs[3] != nil), {
@@ -200,6 +212,8 @@ OSCdef( \knobs,
 				if(~polyphony !== oldPoly){
 					postln("polyphony: " ++ ~polyphony ++ " oldPoly: " ++ oldPoly);
 					~resetVoices.();
+					~nextPreset = ~currentPreset;
+					~selected = "* ";
 				}
 			});
 		};
@@ -222,7 +236,6 @@ OSCdef( \RoutePhysicalKeys,
 	{
 
 		arg msg, time, addr, recvPort;
-		var src = \phys;
 
 
 		if(msg[1] == 0){
@@ -231,10 +244,10 @@ OSCdef( \RoutePhysicalKeys,
 
 			if (msg[2] > 0){
 					
-				~self.sendMsg("/note", msg[1] + 59, ~organelleKeyVelocity,src );
+				~self.sendMsg("/note", msg[1] + 59, ~organelleKeyVelocity);
 				
 			}{
-				~self.sendMsg("/note", msg[1] + 59, 0,src);
+				~self.sendMsg("/note", msg[1] + 59, 0);
 			}
 		};
 	},
@@ -415,11 +428,8 @@ OSCdef( \note,
 
 
 		if(msg[2]>0){
-			if(msg[3] == \phys){
-				~organelleTranspose = ~octaveTable[~currentOctave];
-			}{
-				~organelleTranspose = 0;
-			};
+			
+			~transpose = ~octaveTable[~currentOctave];
 
 			~keysDown.add(msg[1]);
 			if(~sustain){~sustainedNotes.add(msg[1])};
