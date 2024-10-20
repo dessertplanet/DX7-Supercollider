@@ -125,8 +125,8 @@ fork {
 				~voiceIndex = ~voiceIndex + 1;
 			},
 			{
-				~noteArrayDX7[note].set(\gate,0);
-				~noteArrayDX7[note] = nil;
+					~noteArrayDX7[note].set(\gate,0);
+					~noteArrayDX7[note] = nil;
 				//s.numSynths.postln;
 
 		})
@@ -210,7 +210,7 @@ OSCdef( \knobs,
 					~maxVoices = 16;
 				};
 				if(~polyphony !== oldPoly){
-					postln("polyphony: " ++ ~polyphony ++ " oldPoly: " ++ oldPoly);
+					//postln("polyphony: " ++ ~polyphony ++ " oldPoly: " ++ oldPoly);
 					~resetVoices.();
 					~nextPreset = ~currentPreset;
 					~selected = "* ";
