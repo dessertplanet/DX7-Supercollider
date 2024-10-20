@@ -26,6 +26,12 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 
 //Declare global variables
 
+////POLYPHONY VARIABLE/////
+
+~maxVoices=16; //1-16
+
+///////////////////////////
+
 ~presetPath = "/tmp/patch/dx7_state"; //path to file used to save presets that the user likes
 ~rawKnobs = Array.newClear(6); //array for raw knob values
 ~organelleKeyVelocity = 100; //variable to set the velocity used when user plays a note on the organelle accordion keys
@@ -111,15 +117,9 @@ fork {
 					});
 				});
 
-				if(~noteOrder.wrapAt(~voiceIndex) !== nil){
-					~noteOrder.wrapAt(~voiceIndex).free;
-					~noteArrayDX7.do{
-						arg item, i;
-						if(item !== nil){
-							if (item.nodeID == ~noteOrder.wrapAt(~voiceIndex).nodeID, ~noteArrayDX7[i] = nil);
-						}
-					};
-					~noteOrder.removeAt(~voiceIndex % ~noteOrder.size);
+				if(~voiceIndex>(~maxVoices-1)){
+					~noteOrder.removeAt(0).free;
+					~voiceIndex = ~voiceIndex - 1;
 				};
 				
 				~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel),~groupDX7);
@@ -129,7 +129,7 @@ fork {
 			{
 				~noteArrayDX7[note].set(\gate,0);
 				~noteArrayDX7[note] = nil;
-				s.numSynths.postln;
+				//s.numSynths.postln;
 
 		})
 	}

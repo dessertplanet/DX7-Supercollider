@@ -102,7 +102,8 @@ SynthDef(\DX7, {
 		(out[4] * 1 * dn40),
 		(out[5] * 1 * dn41),
 	]);
-	FreeSelfWhenDone.kr(Line.kr(0, 1, 20));
+	//Removing this timeout envelope since voice stealing has been implemented (this may cause presets with infinite sustain to hang forever)
+	//FreeSelfWhenDone.kr(Line.kr(0, 1, 20));
 	kilnod = DetectSilence.ar(out, 0.01, 0.2, doneAction:2);
 	//out = out * Lag2.ar(In.ar(busMe),0.01);
 	//Out.ar([0,1], 0.5 * In.ar(busMe)); //deneme
