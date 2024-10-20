@@ -24,6 +24,14 @@
 		};
 };
 
+//Unpack preset information
+f = { arg x, y ,z; //y value, z cc no
+	if(x == 3,
+		{ ~vr[y] = z },
+		{ ~vr[y + 128] = z }
+	)
+};
+
 //Given a preset index, load that preset
 ~setPreset = {
 	arg g;

@@ -58,7 +58,7 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 ~cancelSym = 'CANCEL'; // " "
 ~toDelete = nil; //keep track of saved preset to be deleted
 ~bend = 0.0; // pitchbend value for synth consumption. input from organelle parameter or MIDI
-~bendRange = 12; // range for pitch bend. +/- in semitones.
+~bendRange = 5; // range for pitch bend. +/- in semitones.
 ~modWheel = nil; // Modwheel param - input from MIDI or Organelle lfo depth parameter
 ~selectedLine = 0; // selected line index in text menus
 ~pageStart = 0; // paging index for text menus
@@ -88,7 +88,7 @@ fork {
 
 //FUNCTIONS
 
-//Only two functions in main, the rest are in lib.scd- these two are core to how wthis all works. The first manages synth voices, the second unpacks preset values.
+//Only one function in main- the one that manages synth voices, the rest are all in lib.scd
 
 ~noteParser = { arg note, vel;
 	1.do { arg yxx;
@@ -136,14 +136,6 @@ fork {
 };
 
 
-//Unpack preset information
-f = { arg x, y ,z; //y value, z cc no
-	if(x == 3,
-		{ ~vr[y] = z },
-		{ ~vr[y + 128] = z }
-	)
-};
-
 //DEFS
 //The rest of main is a set of OSC and MIDI defs that are called when they receive input either from Organelle hardware or 
 //via MIDI
@@ -181,7 +173,7 @@ OSCdef( \knobs,
 			});
 
 			if ((msg[4] != ~rawKnobs[3]) && (~rawKnobs[3] != nil), {
-				~setModDepth.(msg[4] / 1023 * 127);
+				if(~modWheel!==nil, ~setModDepth.(msg[4] / 1023 * 127));
 			});
 		}{
 			if ((msg[2] != ~rawKnobs[1]) && (~rawKnobs[1] != nil), {

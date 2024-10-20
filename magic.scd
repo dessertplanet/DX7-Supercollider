@@ -102,6 +102,7 @@
 	if(~modWheel == nil){
 		lfoDepth = ~dx7_voice_pms_to_semitones[~vr[138]] * (~vr[135] / 99);
 		amd = ~dx7_voice_amd_to_ol_adjustment[~vr[136]];
+		~setModDepth.(~vr[135] / 99 * 127)
 	}{
 		lfoDepth = ~dx7_voice_pms_to_semitones[~vr[138]] * (~modWheel / 99);
 		amd = ~dx7_voice_amd_to_ol_adjustment[~vr[136]] * (~modWheel / 99);
