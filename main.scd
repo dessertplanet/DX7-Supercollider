@@ -95,7 +95,7 @@ fork {
 				//150.do({ arg c; ("cc#" ++ c.asString ++ " = " ++ ~vr[c]).postln}); //general cc printer, rates are not inverted.
 				if(~noteArrayDX7[note] !== nil){
 					~silence.(~noteArrayDX7[note]).r.play;
-					~voiceIndex = ~voiceIndex - 1;
+					~voiceIndex = (~voiceIndex - 1).clip(0,~maxVoices);
 				};
 
 				if(~vr[137] == 1, {//lfo sync controller
@@ -117,17 +117,23 @@ fork {
 
 				if(~voiceIndex>(~maxVoices-1)){
 					~silence.(~noteOrder.removeAt(0)).r.play;
-					~voiceIndex = ~voiceIndex - 1;
+					~voiceIndex = (~voiceIndex - 1).clip(0,~maxVoices);
 				};
 				
 				~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel),~groupDX7);
 				~noteOrder = ~noteOrder.add(Synth.basicNew(\DX7,s,~noteArrayDX7[note].nodeID));
-				~voiceIndex = ~voiceIndex + 1;
+				~voiceIndex = (~voiceIndex + 1).clip(0,~maxVoices);
 			},
 			{
+					~noteOrder.do{
+						arg item, i;
+						if((item !== nil) && (~noteArrayDX7[note] !== nil)){
+							if(item.nodeID == ~noteArrayDX7[note].nodeID, ~noteOrder.removeAt(i))
+						}
+					};
 					~noteArrayDX7[note].set(\gate,0);
 					~noteArrayDX7[note] = nil;
-				//s.numSynths.postln;
+					~voiceIndex = (~voiceIndex - 1).clip(0,~maxVoices);
 
 		})
 	}
