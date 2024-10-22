@@ -28,7 +28,7 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 
 
 ~polyphony = \POLY;
-~maxVoices=16; //1-16
+~maxVoices=3; //1-16
 ~presetPath = "/tmp/patch/dx7_state"; //path to file used to save presets that the user likes
 ~rawKnobs = Array.newClear(6); //array for raw knob values
 ~organelleKeyVelocity = 100; //variable to set the velocity used when user plays a note on the organelle accordion keys
@@ -46,7 +46,6 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 ~longEngPressRoutine = nil;
 ~octaveTable = [-2,-1,0,1,2]; //table of available octaves for organelle accordion keys
 ~currentOctave = 2; // INDEX selected from ~octaveTable.
-~transpose = 0; //Transpose in semitones
 ~currentScreen = \main; // variable to keep track of what is on the screen- used for governing controls
 ~modDepthDisplay = 0; //mod depth to display in a friendly manner
 ~lfoSpeed = ~dx7_voice_lfo_frequency[~vr[132]]; //master LFO frequency in Hz
@@ -63,7 +62,6 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 ~linesDisplayed= []; //array of strings for text menus
 
 ~noteOrder = Array.new(24);
-~voiceIndex = 0;
 
 //Use a routine to set things up, waiting 0.1 seconds before doing the other steps in order to avoid issues with 
 //supercollider starting up.
@@ -95,7 +93,6 @@ fork {
 				//150.do({ arg c; ("cc#" ++ c.asString ++ " = " ++ ~vr[c]).postln}); //general cc printer, rates are not inverted.
 				if(~noteArrayDX7[note] !== nil){
 					~silence.(~noteArrayDX7[note]).r.play;
-					~voiceIndex = (~voiceIndex - 1).clip(0,~maxVoices);
 				};
 
 				if(~vr[137] == 1, {//lfo sync controller
@@ -115,14 +112,16 @@ fork {
 					});
 				});
 
-				if(~voiceIndex>(~maxVoices-1)){
-					~silence.(~noteOrder.removeAt(0)).r.play;
-					~voiceIndex = (~voiceIndex - 1).clip(0,~maxVoices);
-				};
-				
-				~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel),~groupDX7);
-				~noteOrder = ~noteOrder.add(Synth.basicNew(\DX7,s,~noteArrayDX7[note].nodeID));
-				~voiceIndex = (~voiceIndex + 1).clip(0,~maxVoices);
+				if(~polyphony == \POLY){
+					if((~noteOrder.size>(~maxVoices-1))&&(~noteOrder[0] !== nil)){
+						"max polyphony exceeded, stealing a voice".postln;
+						~silence.(~noteOrder.removeAt(0)).r.play;						
+					};
+						~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel),~groupDX7);
+						~noteOrder = ~noteOrder.add(Synth.basicNew(\DX7,s,~noteArrayDX7[note].nodeID));
+				}{
+					~silenceThenNote.(note,vel).r.play;
+				};				
 			},
 			{
 					~noteOrder.do{
@@ -133,8 +132,6 @@ fork {
 					};
 					~noteArrayDX7[note].set(\gate,0);
 					~noteArrayDX7[note] = nil;
-					~voiceIndex = (~voiceIndex - 1).clip(0,~maxVoices);
-
 		})
 	}
 };
@@ -217,7 +214,7 @@ OSCdef( \knobs,
 				};
 				if(~polyphony !== oldPoly){
 					//postln("polyphony: " ++ ~polyphony ++ " oldPoly: " ++ oldPoly);
-					~resetVoices.();
+					~resetVoices.r.play;
 					~nextPreset = ~currentPreset;
 					~selected = "* ";
 				}
@@ -355,8 +352,10 @@ OSCdef( \aux,
 			~auxPressed = true;
 			m.sendMsg("/led", 4);
 		}{
-			~bend = 0.0;
-			~bendExistingNotes.();
+			if(~bend != 0.0){
+				~bend = 0.0;
+				~bendExistingNotes.();
+			};
 
 			~auxPressed = false;
 
@@ -435,7 +434,6 @@ OSCdef( \note,
 
 		if(msg[2]>0){
 			
-			~transpose = ~octaveTable[~currentOctave];
 
 			~keysDown.add(msg[1]);
 			if(~sustain){~sustainedNotes.add(msg[1])};

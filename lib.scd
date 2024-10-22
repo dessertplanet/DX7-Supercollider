@@ -241,9 +241,9 @@ f = { arg x, y ,z; //y value, z cc no
 	~noteArrayDX7.do({
 			arg item, i;
 
-			if(item != nil){
+			if((item != nil)){
 				var new;
-				new = (i + ~vr[131] - 24 + (~bend * ~bendRange) + (~transpose*12)).midicps;
+				new = (i + ~vr[131] - 24 + (~bend * ~bendRange) + (~octaveTable[~currentOctave] * 12)).midicps;
 				item.set(\pitch, new);
 			}
 		})
@@ -311,13 +311,9 @@ f = { arg x, y ,z; //y value, z cc no
 };
 
 ~resetVoices = {
-	~voiceIndex = 0;
-	~noteOrder.do{
-		arg item, i;
-		if(item !== nil){
-			~silence.(item).r.play;
-		}
-	};
+	~groupDX7.set(\totVol,-40);
+	wait(0.1);
+	~groupDX7.freeAll;
 	~noteArrayDX7 = Array.newClear(128);
 	~noteOrder = Array.new(24);
 };
@@ -331,4 +327,18 @@ f = { arg x, y ,z; //y value, z cc no
 		synth.free;
 	};
 	func;
-}
+};
+
+~silenceThenNote = {
+	arg note, vel;
+	var func;
+	func = {
+		~groupDX7.set(\totVol,-40);
+		wait(0.005);
+		~groupDX7.freeAll;
+		~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel),~groupDX7);
+		~noteOrder = ~noteOrder.add(Synth.basicNew(\DX7,s,~noteArrayDX7[note].nodeID));
+		if(~noteOrder.size>1, ~noteOrder.removeAt(~noteOrder.size - 1))
+	};
+	func
+};
