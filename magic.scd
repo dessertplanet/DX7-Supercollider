@@ -1,4 +1,4 @@
-//This file contains a mostly unchanged set of functions provided by Ege Gonul is the DX7-Supercollider project
+//This file contains a mostly unchanged set of functions provided by Aziz Ege Gonul is the DX7-Supercollider project
 //Dessertplanet converted some things to global variables and added some specific variables for control but otherwise
 //things are mostly unchanged
 
@@ -249,7 +249,6 @@
 };
 
 
-//~scsynthDX7 = s.defaultGroup;
 ~groupDX7 = ParGroup.new();
 
 ~lfoSqr = Buffer.alloc(s, 512, 1);

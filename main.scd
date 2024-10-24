@@ -28,7 +28,7 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 
 
 ~polyphony = \POLY;
-~maxVoices=3; //1-16
+~maxVoices=16; //1-16
 ~presetPath = "/tmp/patch/dx7_state"; //path to file used to save presets that the user likes
 ~rawKnobs = Array.newClear(6); //array for raw knob values
 ~organelleKeyVelocity = 100; //variable to set the velocity used when user plays a note on the organelle accordion keys
@@ -61,7 +61,7 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 ~pageStart = 0; // paging index for text menus
 ~linesDisplayed= []; //array of strings for text menus
 
-~noteOrder = Array.new(24);
+~noteOrder = Array.new(24); //Array that will contain pointers to active synths in order they are played
 
 //Use a routine to set things up, waiting 0.1 seconds before doing the other steps in order to avoid issues with 
 //supercollider starting up.
@@ -84,13 +84,12 @@ fork {
 
 //FUNCTIONS
 
-//Only one function in main- the one that manages synth voices, the rest are all in lib.scd
+//Only one function in main- the one that manages synth voices, the rest are all in lib.scd. This function is adapted from Aziz's work.
 
 ~noteParser = { arg note, vel;
 	1.do { arg yxx;
 		if(vel > 0,
 			{
-				//150.do({ arg c; ("cc#" ++ c.asString ++ " = " ++ ~vr[c]).postln}); //general cc printer, rates are not inverted.
 				if(~noteArrayDX7[note] !== nil){
 					~silence.(~noteArrayDX7[note]).r.play;
 				};

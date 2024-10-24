@@ -14,11 +14,13 @@ if [ $? -eq 0 ]; then
     exit 128
 fi 
 
-if ! [ -f /usr/local/bin/sclang ]; then
+if ! [ -f /usr/local/bin/supernova ]; then
     oscsend localhost 4001 /oled/gClear ii 3 1
-    oscsend localhost 4001 /oled/aux/line/1 s "linking sclang"
+    oscsend localhost 4001 /oled/aux/line/1 s "Installing"
+    oscsend localhost 4001 /oled/aux/line/2 s "Supercollider v3.11.2"
+
     sudo ~/scripts/remount-rw.sh
-    sudo ln -s /usr/bin/sclang /usr/local/bin/sclang
+    sudo unzip -o sc11.zip  -d /usr/local
     sudo ~/scripts/remount-ro.sh
 fi
 
