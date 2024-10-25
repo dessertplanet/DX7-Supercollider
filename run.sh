@@ -1,4 +1,4 @@
 cd /tmp/patch
-sudo ~/scripts/start-jack.sh
+~/scripts/start-jack.sh
 echo "starting supercollider from run.sh"
-/usr/local/bin/sclang ./run_me.scd & echo $! > /tmp/pids/sclang.pid
+/usr/local/bin/sclang ./mother.scd & echo $! > /tmp/pids/sclang.pid
