@@ -1,6 +1,6 @@
 //An attempt at a mother.scd that meets the needs of complex supercollider patches
 
-if(thisProcess.argv !== nil){
+if(thisProcess.argv[0] !== nil){
 	~mainPatch = ("/tmp/patch/" ++ thisProcess.argv[0]).standardizePath;
 	postln("main patch set to " ++ ~mainPatch);
 }{
