@@ -21,7 +21,7 @@ if ! [ -f /usr/local/bin/supernova ]; then
 
     sudo ~/scripts/remount-rw.sh
     sudo unzip -o sc11.zip  -d /usr/local
-    sclang ./firstrun.scd
+    /usr/local/bin/sclang ./firstrun.scd
     sudo ~/scripts/remount-ro.sh
 fi
 
