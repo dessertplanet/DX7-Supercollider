@@ -21,6 +21,7 @@ if ! [ -f /usr/local/bin/supernova ]; then
 
     sudo ~/scripts/remount-rw.sh
     sudo unzip -o sc11.zip  -d /usr/local
+    sclang ./firstrun.scd
     sudo ~/scripts/remount-ro.sh
 fi
 
@@ -41,7 +42,8 @@ if [ ! $? -eq 0 ]; then
     fi   
     
     oscsend localhost 4001 /oled/gClear ii 3 1
-    oscsend localhost 4001 /oled/aux/line/1 s "Installing jackd"
+    oscsend localhost 4001 /oled/aux/line/1 s "Installing"
+    oscsend localhost 4001 /oled/aux/line/2 s "jackd"
     sudo ~/scripts/remount-rw.sh
     sudo mv /etc/apt/sources.list /etc/apt/sources.list/bak
     sudo cp ./sources.list /etc/apt/sources.list
@@ -54,6 +56,13 @@ if [ ! $? -eq 0 ]; then
         cd ..
         rm -rf $1
     fi
+    sudo ~/scripts/remount-ro.sh
+fi
+
+if ! [ -f /usr/local/share/SuperCollider/Extensions ]; then
+    sudo ~/scripts/remount-rw.sh
+    sudo mkdir /usr/local/share/SuperCollider/Extensions
+    sudo cp ./FM7* /usr/local/share/SuperCollider/Extensions
     sudo ~/scripts/remount-ro.sh
 fi
 
