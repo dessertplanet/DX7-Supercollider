@@ -16,7 +16,7 @@ fi
 
 if ! [ -f /usr/local/bin/supernova ]; then
     oscsend localhost 4001 /oled/gClear ii 3 1
-    oscsend localhost 4001 /oled/aux/line/1 s "Installing"
+    oscsend localhost 4001 /oled/aux/line/1 s "Installing prereq"
     oscsend localhost 4001 /oled/aux/line/2 s "Supercollider v3.11.2"
 
     sudo ~/scripts/remount-rw.sh
@@ -42,7 +42,7 @@ if [ ! $? -eq 0 ]; then
     fi   
     
     oscsend localhost 4001 /oled/gClear ii 3 1
-    oscsend localhost 4001 /oled/aux/line/1 s "Installing"
+    oscsend localhost 4001 /oled/aux/line/1 s "Installing prereq"
     oscsend localhost 4001 /oled/aux/line/2 s "jackd"
     sudo ~/scripts/remount-rw.sh
     sudo mv /etc/apt/sources.list /etc/apt/sources.list/bak
