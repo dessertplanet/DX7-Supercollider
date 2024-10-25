@@ -1,6 +1,12 @@
 //An attempt at a mother.scd that meets the needs of complex supercollider patches
 
-~mainPatch = ("/tmp/patch/" ++ thisProcess.argv[0]).standardizePath;
+if(thisProcess.argv !== nil){
+	~mainPatch = ("/tmp/patch/" ++ thisProcess.argv[0]).standardizePath;
+	postln("main patch set to " ++ ~mainPatch);
+}{
+	~mainPatch = /tmp/patch/main.scd;
+};
+
 
 //Environment variables
 ~mother = "localhost";
