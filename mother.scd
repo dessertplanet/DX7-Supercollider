@@ -1,6 +1,6 @@
 //An attempt at a mother.scd that meets the needs of complex supercollider patches
 
-~mainPatch = "/tmp/patch/run_me.scd".standardizePath;
+~mainPatch = ("/tmp/patch/" ++ thisProcess.argv[0]).standardizePath;
 
 //Environment variables
 ~mother = "localhost";
