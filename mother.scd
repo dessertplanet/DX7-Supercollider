@@ -4,7 +4,7 @@ if(thisProcess.argv !== nil){
 	~mainPatch = ("/tmp/patch/" ++ thisProcess.argv[0]).standardizePath;
 	postln("main patch set to " ++ ~mainPatch);
 }{
-	~mainPatch = /tmp/patch/main.scd;
+	~mainPatch = "/tmp/patch/main.scd";
 };
 
 
