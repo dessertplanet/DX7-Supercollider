@@ -36,9 +36,9 @@ if [ ! $? -eq 0 ]; then
     sudo ~/scripts/remount-rw.sh
     echo 'jackd2 jackd/tweak_rt_limits boolean true' | sudo debconf-set-selections
     sudo dpkg -i jackd/libjack-jackd2-0_1.9.12~dfsg-2_armhf.deb
+    sudo dpkg -i jackd/jackd2_1.9.12~dfsg-2_armhf.deb
     sudo dpkg -i jackd/jackd_5_all.deb
     sudo dpkg -i jackd/qjackctl_0.4.4-1_armhf.deb
-    sudo dpkg -i jackd/jackd2_1.9.12~dfsg-2_armhf.deb
 
     if [ ! $? -eq 0 ]; then
         oscsend localhost 4001 /oled/aux/line/1 s "jackd install failed"
