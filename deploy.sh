@@ -35,12 +35,13 @@ if [ ! $? -eq 0 ]; then
     oscsend localhost 4001 /oled/aux/line/2 s "jackd"
     sudo ~/scripts/remount-rw.sh
     echo 'jackd2 jackd/tweak_rt_limits boolean true' | sudo debconf-set-selections
-    sudo dpkg -i ./jackd/*.deb
+    sudo dpkg -i jackd/*.deb
     if [ ! $? -eq 0 ]; then
         oscsend localhost 4001 /oled/aux/line/1 s "jackd install failed"
         sudo ~/scripts/remount-ro.sh
         cd ..
         rm -rf $1
+        exit 128
     fi
     sudo ~/scripts/remount-ro.sh
 fi
