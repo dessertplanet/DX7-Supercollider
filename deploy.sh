@@ -29,27 +29,13 @@ fi
 
 which jackd
 
-if [ ! $? -eq 0 ]; then 
-    wget -q --spider http://google.com
-
-    if [ ! $? -eq 0 ]; then
-        oscsend localhost 4001 /oled/gClear ii 3 1
-        oscsend localhost 4001 /oled/aux/line/1 s "Connect Internet"
-        oscsend localhost 4001 /oled/aux/line/2 s "Then try again"
-        cd ..
-        rm -rf $1
-        exit 128
-    fi   
-    
+if [ ! $? -eq 0 ]; then  
     oscsend localhost 4001 /oled/gClear ii 3 1
     oscsend localhost 4001 /oled/aux/line/1 s "Installing prereq"
     oscsend localhost 4001 /oled/aux/line/2 s "jackd"
     sudo ~/scripts/remount-rw.sh
-    sudo mv /etc/apt/sources.list /etc/apt/sources.list/bak
-    sudo cp ./sources.list /etc/apt/sources.list
-    sudo apt-get -y update
     echo 'jackd2 jackd/tweak_rt_limits boolean true' | sudo debconf-set-selections
-    sudo -E apt-get -y install jackd2
+    sudo dpkg -i ./jackd/*.deb
     if [ ! $? -eq 0 ]; then
         oscsend localhost 4001 /oled/aux/line/1 s "jackd install failed"
         sudo ~/scripts/remount-ro.sh
