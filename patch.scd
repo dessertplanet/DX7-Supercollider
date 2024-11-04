@@ -11,6 +11,9 @@
 //Load file with SynthDefs for making sounds (These also from Ege)
 "/tmp/patch/sound.scd".load;
 
+//load tests
+// "/tmp/patch/test.scd".load;
+
 //Show a reasonabl loading screen while we crunch on big files.
 ~graphics.(\Clear);
 
@@ -61,7 +64,7 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 ~pageStart = 0; // paging index for text menus
 ~linesDisplayed= []; //array of strings for text menus
 
-~noteOrder = Array.new(24); //Array that will contain pointers to active synths in order they are played
+~noteOrder = Array.new(~maxVoices); //Array that will contain pointers to active synths in order they are played
 
 //Use a routine to set things up, waiting 0.1 seconds before doing the other steps in order to avoid issues with 
 //supercollider starting up.
@@ -113,22 +116,16 @@ fork {
 
 				if(~polyphony == \POLY){
 					if((~noteOrder.size>(~maxVoices-1))&&(~noteOrder[0] !== nil)){
-						"max polyphony exceeded, stealing a voice".postln;
-						~silence.(~noteOrder.removeAt(0)).r.play;						
+						~silence.(~noteOrder.pop).r.play;	
 					};
-						~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel),~groupDX7);
-						~noteOrder = ~noteOrder.add(Synth.basicNew(\DX7,s,~noteArrayDX7[note].nodeID));
+
+					~noteArrayDX7[note] = Synth(\DX7 ,~defme.value(note, vel),~groupDX7);
+					~noteOrder = ~noteOrder.addFirst(Synth.basicNew(\DX7,s,~noteArrayDX7[note].nodeID));
 				}{
 					~silenceThenNote.(note,vel).r.play;
 				};				
 			},
 			{
-					~noteOrder.do{
-						arg item, i;
-						if((item !== nil) && (~noteArrayDX7[note] !== nil)){
-							if(item.nodeID == ~noteArrayDX7[note].nodeID, ~noteOrder.removeAt(i))
-						}
-					};
 					~noteArrayDX7[note].set(\gate,0);
 					~noteArrayDX7[note] = nil;
 		})
