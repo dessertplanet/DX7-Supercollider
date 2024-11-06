@@ -81,6 +81,7 @@ fork {
 		~nextPreset = ~savedPresets[~savedPresets.size-1];
 		~setPreset.(~savedPresets[~savedPresets.size-1])
 	};
+	Synth.after(~groupDX7, \Reverb);
 	~graphics.(\Clear);
 	~refreshScreen.();	
 };

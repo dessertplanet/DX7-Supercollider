@@ -4,6 +4,7 @@ buffers and busses
 
 ~busMeAmp = Bus.audio(s, 1);
 ~busMePitch = Bus.audio(s, 1);
+~reverbBus = Bus.audio(s,2);
 
 /////SYNTHDEFS
 
@@ -112,4 +113,19 @@ SynthDef(\DX7, {
 	out = out * ((totVol.lag2(0.005)-8).dbamp);
 	Out.ar(outBus, out.dup); //orj
 
+}).add;
+
+//def that is instantiated once server has booted
+SynthDef(\Reverb, {
+	arg outBus = 0;
+	var sig = In.ar(~reverbBus,1);
+
+
+	sig = Fverb.ar(
+		in0: sig,
+		in1: sig, 
+		decay: 90
+	);
+
+	Out.ar(outBus, sig);
 }).add;

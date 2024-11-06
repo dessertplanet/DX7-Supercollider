@@ -244,6 +244,7 @@
 	ptchEnv = ~defPitchEnv.value((99-~vr[139]),(99-~vr[140]),(99-~vr[141]),(99-~vr[142]),~vr[143],~vr[144],~vr[145],~vr[146]);
 	a = bil ++ a ++ ptchEnv;
 	a = a ++ [\osc_sync, ((~vr[130] * (-1)) + 1)];
+	a = a ++ [\outBus, ~reverbBus];
 	a;
 
 };
