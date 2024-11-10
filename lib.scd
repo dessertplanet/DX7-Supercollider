@@ -14,7 +14,11 @@
 		m.sendMsg("/oled/line/1",(~selected ++ ~presetMeta[~nextPreset][3]).padRight(15) ++ ("#" ++ ~nextPreset).asString.padLeft(6));
 		if(~auxPressed == false){
 			m.sendMsg("/oled/line/2", "bank " ++ ~nextBank.padRight(9));
-			m.sendMsg("/oled/line/3", "velocity " ++ ~organelleKeyVelocity);
+			if (~organelleKeyVelocity>0){
+				m.sendMsg("/oled/line/3", "velocity offset " ++ "+" ++ (~organelleKeyVelocity / 63.0 / 2.0 * 100.0).asStringPrec(2) ++ "%");
+			}{
+				m.sendMsg("/oled/line/3", "velocity offset " ++ (~organelleKeyVelocity / 63.0 / 2.0 * 100.0).asStringPrec(2) ++ "%");
+			};
 			m.sendMsg("/oled/line/4", "lfo depth " ++ ~modDepthDisplay ++ "%");
 			m.sendMsg("/oled/line/5", "reverb " ++ (~oneKnobReverb * 100).asStringPrec(3) ++ "%");
 		}{

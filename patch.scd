@@ -34,7 +34,7 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 ~maxVoices=16; //1-16
 ~presetPath = "/tmp/patch/dx7_state"; //path to file used to save presets that the user likes
 ~rawKnobs = Array.newClear(6); //array for raw knob values
-~organelleKeyVelocity = 100; //variable to set the velocity used when user plays a note on the organelle accordion keys
+~organelleKeyVelocity = 0; //variable to set the velocity used when user plays a note on the organelle accordion keys
 ~sustain = false; //state of the sustain pedal for synth consumption. Either via MIDI or the PEDAL input on Organelle
 ~sustainedNotes = Set.new(128); //Keep a set of notes to sustain
 ~keysDown = Set.new(128); //Keep track of which keys are down. When the sustain pedal is lifted, these notes don't stop
@@ -166,7 +166,7 @@ OSCdef( \knobs,
 			};
 
 			if ((msg[2] != ~rawKnobs[1]) && (~rawKnobs[1] != nil), {
-				~organelleKeyVelocity = (msg[2] / 1023 * 126 + 1).asInteger;
+				~organelleKeyVelocity = (msg[2] / 1023 * 126 - 63).asInteger.clip(-63,63);
 				~nextPreset = ~currentPreset;
 				~selected = "* ";
 			});
@@ -238,7 +238,7 @@ OSCdef( \RoutePhysicalKeys,
 
 			if (msg[2] > 0){
 					
-				~self.sendMsg("/note", msg[1] + 59, ~organelleKeyVelocity);
+				~self.sendMsg("/note", msg[1] + 59, 64);
 				
 			}{
 				~self.sendMsg("/note", msg[1] + 59, 0);
@@ -427,7 +427,7 @@ OSCdef( \note,
 
 			~keysDown.add(msg[1]);
 			if(~sustain){~sustainedNotes.add(msg[1])};
-			~noteParser.(msg[1],msg[2]);
+			~noteParser.(msg[1],(msg[2]+~organelleKeyVelocity).clip(1,127));
 		}{
 			~keysDown.remove(msg[1]);
 			if (~sustainedNotes.includes(msg[1])==false){
