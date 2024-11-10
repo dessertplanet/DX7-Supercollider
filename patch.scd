@@ -66,6 +66,8 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 
 ~noteOrder = Array.new(~maxVoices); //Array that will contain pointers to active synths in order they are played
 
+~polyphonySym = 'PHONY MODE';
+
 //Use a routine to set things up, waiting 0.1 seconds before doing the other steps in order to avoid issues with 
 //supercollider starting up.
 
@@ -178,20 +180,7 @@ OSCdef( \knobs,
 
 				~oneKnobReverb = msg[4] / 1023.0;
 				~reverbSynth.set(\oneKnob, msg[4]);
-				// oldPoly = ~polyphony;
-				// if(msg[4] < 512){
-				// 	~polyphony = \MONO;
-				// 	~maxVoices = 1;
-				// }{
-				// 	~polyphony = \POLY;
-				// 	~maxVoices = 16;
-				// };
-				// if(~polyphony !== oldPoly){
-				// 	//postln("polyphony: " ++ ~polyphony ++ " oldPoly: " ++ oldPoly);
-				// 	~resetVoices.r.play;
-				// 	~nextPreset = ~currentPreset;
-				// 	~selected = "* ";
-				// }
+				
 			});
 		}{
 			if ((msg[1] != ~rawKnobs[0]) && (~rawKnobs[0] != nil), {
@@ -227,8 +216,9 @@ OSCdef( \knobs,
 			~rawKnobs[i] = msg[i + 1];
 		};
 
-
-		~refreshScreen.();
+		if(~currentScreen  == \main){
+			~refreshScreen.();
+		}
 	},
 	"/knobs",
 	recvPort:4000
@@ -295,7 +285,7 @@ OSCdef( \enc,
 		}
 		{\save}{
 			//SAVE MENU ENCCCC
-			~incrementMenu.(~saveMenuTitle, ~savedPresets, msg[1], ~newSaveSym, ~cancelSym)
+			~incrementMenu.(~saveMenuTitle, ~savedPresets, msg[1], ~newSaveSym, ~cancelSym, ~polyphonySym ++ ": " ++ ~polyphony)
 		}
 		{\confirm}{
 			//confirm menu enc
@@ -331,7 +321,6 @@ OSCdef( \encbut,
 				}
 				{
 					//SAVE MENU ENCBUT UP
-					~currentScreen = \main;
 
 					~menuSelect.(~linesDisplayed[~selectedLine]);
 				};
@@ -457,7 +446,9 @@ MIDIdef.bend(\pitchbend,
 
 		~bend = (raw - 8192).clip(-8191,8191) / 8191;
 		if(~auxPressed){
-			~refreshScreen.();
+			if(~currentScreen  == \main){
+				~refreshScreen.();
+			}
 		};
 
 		//bend is calculated to be high resolution pitch bend multiplier from -1.0 to 1.0, 0 at rest.

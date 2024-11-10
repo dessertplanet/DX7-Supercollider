@@ -157,8 +157,8 @@ f = { arg x, y ,z; //y value, z cc no
 ~menuSelect = {
 	arg item;
 
-	switch(item)
-	{'SAVE CURRENT'}{
+	case
+	{item == 'SAVE CURRENT'}{
 		//SAVE THE CURRENT PRESET
 		postln("saving preset " ++ ~currentPreset);
 		~savedPresets = ~savedPresets.add(~currentPreset);
@@ -172,11 +172,11 @@ f = { arg x, y ,z; //y value, z cc no
 		~refreshScreen.();
 		~saveToFile.();
 	}
-	{'CANCEL'}{
+	{item == 'CANCEL'}{
 		~currentScreen = \main;
 		~refreshScreen.()
 	}
-	{'YES'}{
+	{item == 'YES'}{
 		//delete this preset
 		postln("removing at " ++ (~toDelete));
 		~savedPresets.removeAt(~toDelete);
@@ -184,22 +184,44 @@ f = { arg x, y ,z; //y value, z cc no
 		~graphics.(\Clear);
 		~selectedLine = 0;
 		~pageStart = 0;
-		~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym);
+		~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym, ~polyphonySym ++ ": " ++ ~polyphony);
 		~saveToFile.();
 	}
-	{'NO'}{
+	{item == 'NO'}{
 		~currentScreen = \save;
 		~graphics.(\Clear);
 		~selectedLine = 0;
 		~pageStart = 0;
-		~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym);
+		~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym, ~polyphonySym ++ ": " ++ ~polyphony);
 	}
-	{//DEFAULT CASE IS A PRESET ID
+	{(item == (~polyphonySym ++ ": " ++ \MONO))||(item == (~polyphonySym ++ ": " ++ \POLY))}{
+
+		
+		~currentScreen = \save;
+
+		if(~polyphony == \POLY){
+			~polyphony = \MONO;
+			~maxVoices = 1;
+		}{
+			~polyphony = \POLY;
+			~maxVoices = 16;
+		};
+	
+		~resetVoices.r.play;
+		~nextPreset = ~currentPreset;
+		~selected = "* ";
+		~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym, ~polyphonySym ++ ": " ++ ~polyphony);
+
+		
+	}
+	{true}{//DEFAULT CASE IS A PRESET ID
+		~currentScreen = \main;
 		~nextPreset = item;
 		~setPreset.(item);
+		~selectedLine = 0;
+		~pageStart = 0;
 	};
-	~selectedLine = 0;
-	~pageStart = 0;
+	
 };
 
 //Routine to govern behavior of organelle encoder long press
@@ -215,7 +237,7 @@ f = { arg x, y ,z; //y value, z cc no
 			//SHOWING THE SAVED MENU
 			~graphics.(\Clear);
 			~currentScreen = \save;
-			~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym);
+			~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym, ~polyphonySym ++ " " ++ ~polyphony);
 		}
 	}
 	{\save}{
@@ -259,7 +281,9 @@ f = { arg x, y ,z; //y value, z cc no
 	~headno.set(\lfo_amd, ~dx7_voice_amd_to_ol_adjustment[~vr[136]] * (~modWheel / 99));
 
 	~modDepthDisplay = (val / 127 * 100).asInteger;
-	~refreshScreen.();
+	if(~currentScreen  == \main){
+		~refreshScreen.();
+	}
 };
 
 //set lfo frequency
@@ -270,7 +294,9 @@ f = { arg x, y ,z; //y value, z cc no
 
 	~headno.set(\lfo_speed, ~lfoSpeed);
 
-	~refreshScreen.();
+	if(~currentScreen  == \main){
+		~refreshScreen.();
+	}
 };
 
 //Save file management. When a preset is saved, the whole list is re-written to file dx7_state
