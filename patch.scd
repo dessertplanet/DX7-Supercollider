@@ -63,6 +63,7 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 ~selectedLine = 0; // selected line index in text menus
 ~pageStart = 0; // paging index for text menus
 ~linesDisplayed= []; //array of strings for text menus
+~lastLoad = nil; // store last preset loaded for better menu experience
 
 ~noteOrder = Array.new(~maxVoices); //Array that will contain pointers to active synths in order they are played
 

@@ -86,7 +86,11 @@ f = { arg x, y ,z; //y value, z cc no
     linesArray[~pageStart..(~pageStart+3)].do{
 		arg item, i;
 		var thisPreset, thisPresetMeta;
+		if(linesArray[~pageStart+i] !== nil){
 		thisPreset = linesArray[~pageStart+i];
+		}{
+			thisPreset = linesArray[i];
+		};
 		thisPresetMeta = ("#" ++ thisPreset) ++ " " ++ ~presetMeta[thisPreset][3];
 		if(i == ~selectedLine){
 			m.sendMsg("/oled/line/"++(i+2), "> " ++ thisPresetMeta)
@@ -168,6 +172,7 @@ f = { arg x, y ,z; //y value, z cc no
 		~savedPresets = ~savedPresets.add(~currentPreset);
 		~nextPreset = ~currentPreset;
 		~currentScreen = \main;
+		~lastLoad = ~currentPreset;
 		if(~nextPreset == ~currentPreset){
 			~selected = "* ";
 		}{
@@ -183,6 +188,9 @@ f = { arg x, y ,z; //y value, z cc no
 	{item == 'YES'}{
 		//delete this preset
 		postln("removing at " ++ (~toDelete));
+		if(~savedPresets[~toDelete] == ~lastLoad){
+			~lastLoad = nil;	
+		};
 		~savedPresets.removeAt(~toDelete);
 		~currentScreen = \save;
 		~graphics.(\Clear);
@@ -220,6 +228,7 @@ f = { arg x, y ,z; //y value, z cc no
 	}
 	{true}{//DEFAULT CASE IS A PRESET ID
 		~currentScreen = \main;
+		~lastLoad = item;
 		~nextPreset = item;
 		~setPreset.(item);
 		~selectedLine = 0;
@@ -241,6 +250,18 @@ f = { arg x, y ,z; //y value, z cc no
 			//SHOWING THE SAVED MENU
 			~graphics.(\Clear);
 			~currentScreen = \save;
+			if(~lastLoad !== nil){
+				~savedPresets.do{
+					arg item, i;
+					if(item == ~lastLoad){
+						~pageStart = i;
+						~selectedLine = 0;
+					}
+				}
+			}{
+				~pageStart = 0;
+				~selectedLine = 0;
+			};
 			~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym, ~polyphonySym ++ " " ++ ~polyphony);
 		}
 	}
