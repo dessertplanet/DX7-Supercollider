@@ -21,7 +21,11 @@
 			m.sendMsg("/oled/line/2", "bend " ++ (~bend * 100).asStringPrec(3) ++ "%");
 			m.sendMsg("/oled/line/3", "bend range " ++ ~bendRange);
 			m.sendMsg("/oled/line/4", "lfo speed " ++ ~lfoSpeed.asStringPrec(3) ++ " Hz");
+			if (~octaveTable[~currentOctave]>0){
+				m.sendMsg("/oled/line/5", "octave " ++ "+" ++ ~octaveTable[~currentOctave]);
+			}{
 			m.sendMsg("/oled/line/5", "octave " ++ ~octaveTable[~currentOctave]);
+			}
 		};
 };
 
