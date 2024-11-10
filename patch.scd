@@ -81,7 +81,7 @@ fork {
 		~nextPreset = ~savedPresets[~savedPresets.size-1];
 		~setPreset.(~savedPresets[~savedPresets.size-1])
 	};
-	Synth.after(~groupDX7, \Reverb);
+	~reverbSynth = Synth.after(~groupDX7, \Reverb);
 	~graphics.(\Clear);
 	~refreshScreen.();	
 };
@@ -175,9 +175,23 @@ OSCdef( \knobs,
 			});
 
 			if ((msg[4] != ~rawKnobs[3]) && (~rawKnobs[3] != nil), {
-				~currentOctave = (msg[4] / 1023 * 4).asInteger;
-				~nextPreset = ~currentPreset;
-				~selected = "* ";
+
+				~oneKnobReverb = msg[4] / 1023.0;
+				~reverbSynth.set(\oneKnob, msg[4]);
+				// oldPoly = ~polyphony;
+				// if(msg[4] < 512){
+				// 	~polyphony = \MONO;
+				// 	~maxVoices = 1;
+				// }{
+				// 	~polyphony = \POLY;
+				// 	~maxVoices = 16;
+				// };
+				// if(~polyphony !== oldPoly){
+				// 	//postln("polyphony: " ++ ~polyphony ++ " oldPoly: " ++ oldPoly);
+				// 	~resetVoices.r.play;
+				// 	~nextPreset = ~currentPreset;
+				// 	~selected = "* ";
+				// }
 			});
 		}{
 			if ((msg[1] != ~rawKnobs[0]) && (~rawKnobs[0] != nil), {
@@ -200,21 +214,10 @@ OSCdef( \knobs,
 				~selected = "* ";
 			});
 
-			if ((msg[4] != ~rawKnobs[3]) && (~rawKnobs[3] != nil), {
-				oldPoly = ~polyphony;
-				if(msg[4] < 512){
-					~polyphony = \MONO;
-					~maxVoices = 1;
-				}{
-					~polyphony = \POLY;
-					~maxVoices = 16;
-				};
-				if(~polyphony !== oldPoly){
-					//postln("polyphony: " ++ ~polyphony ++ " oldPoly: " ++ oldPoly);
-					~resetVoices.r.play;
-					~nextPreset = ~currentPreset;
-					~selected = "* ";
-				}
+				if ((msg[4] != ~rawKnobs[3]) && (~rawKnobs[3] != nil), {
+				~currentOctave = (msg[4] / 1023 * 4).asInteger;
+				~nextPreset = ~currentPreset;
+				~selected = "* ";
 			});
 		};
 

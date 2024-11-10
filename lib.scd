@@ -16,12 +16,12 @@
 			m.sendMsg("/oled/line/2", "bank " ++ ~nextBank.padRight(9));
 			m.sendMsg("/oled/line/3", "velocity " ++ ~organelleKeyVelocity);
 			m.sendMsg("/oled/line/4", "lfo depth " ++ ~modDepthDisplay ++ "%");
-			m.sendMsg("/oled/line/5", "octave " ++ ~octaveTable[~currentOctave]);
+			m.sendMsg("/oled/line/5", "reverb " ++ (~oneKnobReverb * 100).asStringPrec(3) ++ "%");
 		}{
 			m.sendMsg("/oled/line/2", "bend " ++ (~bend * 100).asStringPrec(3) ++ "%");
 			m.sendMsg("/oled/line/3", "bend range " ++ ~bendRange);
 			m.sendMsg("/oled/line/4", "lfo speed " ++ ~lfoSpeed.asStringPrec(3) ++ " Hz");
-			m.sendMsg("/oled/line/5", "polyphony " ++ ~polyphony);
+			m.sendMsg("/oled/line/5", "octave " ++ ~octaveTable[~currentOctave]);
 		};
 };
 

@@ -4,7 +4,7 @@ buffers and busses
 
 ~busMeAmp = Bus.audio(s, 1);
 ~busMePitch = Bus.audio(s, 1);
-~reverbBus = Bus.audio(s,2);
+~reverbBus = Bus.audio(s,1);
 
 /////SYNTHDEFS
 
@@ -115,17 +115,28 @@ SynthDef(\DX7, {
 
 }).add;
 
-//def that is instantiated once server has booted
+
+//A stereo, one-knob, reverb
+
+~oneKnobReverb = 0.0; // 0-1023 reverb knob - affects multiple parameters
+
 SynthDef(\Reverb, {
 	arg outBus = 0;
-	var sig = In.ar(~reverbBus,1);
+	var sig = In.ar(~reverbBus,1), wet;
 
+	sig = sig!2;
 
-	sig = Fverb.ar(
-		in0: sig,
-		in1: sig, 
-		decay: 90
+	wet = Fverb2.ar(
+		in0: sig[0],
+		in1: sig[1], 
+		decay: \oneKnob.kr.linlin(0.0,1023.0, 40.0, 92.0),
+		predelay: \oneKnob.kr.linexp(512.0,1023.0,0.0,9.0).lag,
+		damping: \oneKnob.kr.linexp(0.0,1023.0, 500.0,10000.0),
+		modulator_depth: \oneKnob.kr.linlin(512.0,1023.0, 0.5, 0.7),
+		tail_density: \oneKnob.kr.linlin(0.0,1023.0, 60.0, 80.0).lag
 	);
+
+	sig = SelectX.ar(\oneKnob.kr / 1023.0, [sig, wet]);
 
 	Out.ar(outBus, sig);
 }).add;
