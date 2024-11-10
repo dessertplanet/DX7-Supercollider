@@ -25,8 +25,6 @@ if ! [ -f /usr/local/bin/supernova ]; then
     sudo ~/scripts/remount-ro.sh
 fi
 
-
-
 which jackd
 
 if [ ! $? -eq 0 ]; then  
@@ -64,4 +62,3 @@ sudo cp -f prereqs/extensions/* /usr/local/share/SuperCollider/Extensions
 sudo ~/scripts/remount-ro.sh
 
 exit 1
-

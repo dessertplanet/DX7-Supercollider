@@ -6,12 +6,12 @@
 
 * 16-voice DX7 FM synth emulation with 16,384 real DX7 presets from across the internet
 * Presets are very wide ranging in quality and can have large timbral variation based on note velocity
+* Lush stereo reverb with a simple one-knob interface
 * Monophonic mode
 * Organelle pedal input support for sustain pedal
 * MIDI input for notes (including velocity), sustain pedal, pitchbend with configurable range, and mod depth
 * MIDI configuration is as simple as plugging in your usb of 3.5mm TRS midi device and relaunching the patch
 * Save presets that you like to your own curated list, persisted for next time you open the patch
-* Easy to use interface
 
 ## Intro from Aziz's README
 
@@ -25,6 +25,7 @@ This installation will install the following prerequisites from the internet if 
 * Jackd for audio interface purposes
 * Supercollider 3.11.2 (headless installation including Supernova)
 * FM7 Ugen for Supercollider, pulled from the SC3-plugins
+* Fverb2 Ugen for Supercollider, a take on the Dattorro plate reverb
 
 ## Interface 
 
@@ -39,12 +40,14 @@ The patch is designed so that instead of programming the patches directly (DX7 w
 * Pressing encoder button loads the currently displayed preset (Asterisk at the left indicates that currently shown preset is loaded)
 * Aux + Encoder button loads a random preset (this can be done many times in short succession)
 * Knobs adjust the currently shown parameters
-* Velocity parameter only affects organelle accordion key input. (all other parameters affect sounds regardless of internal or external control)
-* Changing the polyphony parameter silences all notes, if you ever encounter a preset that drones forever that you need to silence
+* Reverb knob simultaneously controls reverb mix, decay time, damping, and more. 0% is dry, 100% is ambient insanity
+* Velocity offset affects not only built in accordion keys but MIDI input as well
 * Aux button shows secondary parameters (aux + knob 1 = pitchbend)
 * Aux + Longpress of the encode launches the save menu
     * In save menu selecting a saved preset with the encode button loads it
     * Long pressing the encoder button in the save menu allows you to delete saved presets from this list (they remain in the main list of presets)
+* Polyphony can be set to MONO or POLY at the bottom of the save menu (called "PHONY MODE")
+* Changing the polyphony parameter silences all notes, if you ever encounter a preset that drones forever that you need to silence
 
 ## Notes to the synthesist
 
@@ -73,6 +76,9 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 * Aziz Ege Gonul for the amazing synth model
 * TheTechnoBear for getting things started for Supercollider on Organelle
-* Hat tip to John Chowning
+* Jon Dattorro for the excellent reverb algorithm in [his 1997 paper](https://ccrma.stanford.edu/~dattorro/EffectDesignPart1.pdf)
+* Jean Pierre Cimalando for the [faust implementation](https://github.com/jpcima/fverb) of the said Jon Dattorro reverb
+* [Zack Scholl](https://github.com/schollz) for porting the faust implementation to Supercollider (I recompiled [his fork](https://github.com/schollz/portedplugins) of Mads Kjeldgaard's portedplugins on my Organelle)
+* Hat tip to John Chowning for his work on the OG DX7
 * STEIM for letting Aziz use their DX7 and espresso machine.
-* and all the anonymous preset makers for the Yamaha DX7 (unsung heroes/angels).
+* All the anonymous preset makers for the Yamaha DX7.
