@@ -266,7 +266,7 @@ f = { arg x, y ,z; //y value, z cc no
 				~pageStart = 0;
 				~selectedLine = 0;
 			};
-			~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym, ~polyphonySym ++ " " ++ ~polyphony);
+			~textMenu.(~saveMenuTitle, ~savedPresets,~newSaveSym, ~cancelSym, ~polyphonySym ++ ": " ++ ~polyphony);
 		}
 	}
 	{\save}{
