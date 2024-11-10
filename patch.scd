@@ -55,7 +55,7 @@ m.sendMsg("/oled/line/2","loading 16384 presets");
 ~selected = "* "; //string used to indicate whether the currently SHOWN preset is also RUNNING, in the main screen
 ~saveMenuTitle = "LOAD/SAVE"; //Title string for save menu
 ~newSaveSym = 'SAVE CURRENT'; //symbols for use in text menu
-~cancelSym = 'CANCEL'; // " "
+~cancelSym = 'EXIT'; // " "
 ~toDelete = nil; //keep track of saved preset to be deleted
 ~bend = 0.0; // pitchbend value for synth consumption. input from organelle parameter or MIDI
 ~bendRange = 5; // range for pitch bend. +/- in semitones.

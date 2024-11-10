@@ -158,7 +158,7 @@ f = { arg x, y ,z; //y value, z cc no
 	arg item;
 
 	case
-	{item == 'SAVE CURRENT'}{
+	{item == ~newSaveSym}{
 		//SAVE THE CURRENT PRESET
 		postln("saving preset " ++ ~currentPreset);
 		~savedPresets = ~savedPresets.add(~currentPreset);
@@ -172,7 +172,7 @@ f = { arg x, y ,z; //y value, z cc no
 		~refreshScreen.();
 		~saveToFile.();
 	}
-	{item == 'CANCEL'}{
+	{item == ~cancelSym}{
 		~currentScreen = \main;
 		~refreshScreen.()
 	}
