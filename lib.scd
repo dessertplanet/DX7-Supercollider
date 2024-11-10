@@ -24,7 +24,7 @@
 			if (~octaveTable[~currentOctave]>0){
 				m.sendMsg("/oled/line/5", "octave " ++ "+" ++ ~octaveTable[~currentOctave]);
 			}{
-			m.sendMsg("/oled/line/5", "octave " ++ ~octaveTable[~currentOctave]);
+				m.sendMsg("/oled/line/5", "octave " ++ ~octaveTable[~currentOctave]);
 			}
 		};
 };
@@ -87,7 +87,7 @@ f = { arg x, y ,z; //y value, z cc no
 		arg item, i;
 		var thisPreset, thisPresetMeta;
 		if(linesArray[~pageStart+i] !== nil){
-		thisPreset = linesArray[~pageStart+i];
+			thisPreset = linesArray[~pageStart+i];
 		}{
 			thisPreset = linesArray[i];
 		};
