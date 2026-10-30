@@ -114,7 +114,7 @@ fork {
 						~headno = Synth.before(~groupDX7, \InfEfx, ~defjamHead0.())
 					},
 					{
-						~headno.set(~defjamHead0.())
+						~headno.set(*~defjamHead0.())
 					});
 				});
 
