@@ -35,24 +35,15 @@ if [ $? -eq 0 ]; then
 fi
 
 if ! [ -x /usr/bin/sclang ] || ! [ -x /usr/bin/supernova ] || ! command -v jackd > /dev/null; then
-    # the Organelle has no battery backed clock, so it boots with a stale date
-    # which makes apt reject the repository signatures as "not yet valid"
-    status "Syncing clock" "please wait"
-    sudo systemctl start systemd-timesyncd
-    for i in $(seq 1 30); do
-        timedatectl show -p NTPSynchronized --value | grep -q yes && break
-        sleep 1
-    done
-
+    # offline install: prereqs/debs holds every package a stock OS 5.1 image is
+    # missing for SC 3.13 + jackd2, so apt resolves everything locally
     status "Installing prereq" "SC 3.13 + jackd"
     sudo $FW_DIR/scripts/remount-rw.sh
     echo 'jackd2 jackd/tweak_rt_limits boolean true' | sudo debconf-set-selections
-    sudo -E apt-get update || fail "apt update"
     # don't trust apt's exit code: the OS 5.1 image ships with initramfs-tools
     # half-configured, and its trigger fails on every install (harmless, the
     # Organelle doesn't boot from an initramfs). Check for the binaries instead.
-    sudo -E apt-get install -y --no-install-recommends \
-        jackd2 supercollider-language supercollider-server supercollider-supernova
+    sudo -E apt-get install -y --no-install-recommends --no-download ./prereqs/debs/*.deb
     sudo $FW_DIR/scripts/remount-ro.sh
 
     if ! [ -x /usr/bin/sclang ] || ! [ -x /usr/bin/supernova ] || ! command -v jackd > /dev/null; then
